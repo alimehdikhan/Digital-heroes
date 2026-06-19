@@ -1,6 +1,7 @@
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { ProfileForm } from './ProfileForm'
 
 export default async function ProfileSettingsPage() {
@@ -110,9 +111,9 @@ export default async function ProfileSettingsPage() {
                 </div>
               </div>
               
-              <a href="/pricing" className="w-full md:w-auto inline-flex items-center justify-center px-8 h-14 btn-primary rounded-xl text-navy-950 font-body uppercase tracking-widest font-black shrink-0">
+              <Link href="/pricing" className="w-full md:w-auto inline-flex items-center justify-center px-8 h-14 btn-primary rounded-xl text-navy-950 font-body uppercase tracking-widest font-black shrink-0">
                 {isActive ? 'Manage Plan' : 'Subscribe Now'}
-              </a>
+              </Link>
             </div>
           </div>
         </FadeIn>

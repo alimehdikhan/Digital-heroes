@@ -5,11 +5,20 @@ import Link from "next/link"
 import { motion, useScroll, useMotionValueEvent } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 export function MarketingNavbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { scrollY } = useScroll()
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+  }, [])
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 50)
@@ -51,16 +60,26 @@ export function MarketingNavbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost" className="text-white hover:text-gold-400 hover:bg-white/5">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-gold-gradient text-navy-950 hover:shadow-gold-glow font-bold border-none transition-all hover:scale-105">
-                Be a Hero
-              </Button>
-            </Link>
+            {user ? (
+              <Link href="/dashboard">
+                <Button className="bg-gold-gradient text-navy-950 hover:shadow-gold-glow font-bold border-none transition-all hover:scale-105">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-white hover:text-gold-400 hover:bg-white/5">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button className="bg-gold-gradient text-navy-950 hover:shadow-gold-glow font-bold border-none transition-all hover:scale-105">
+                    Be a Hero
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -92,16 +111,26 @@ export function MarketingNavbar() {
               Pricing
             </Link>
             <hr className="border-white/10 my-2" />
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-              <Button className="w-full bg-gold-gradient text-navy-950 font-bold border-none">
-                Be a Hero
-              </Button>
-            </Link>
+            {user ? (
+              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                <Button className="w-full bg-gold-gradient text-navy-950 font-bold border-none">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full bg-gold-gradient text-navy-950 font-bold border-none">
+                    Be a Hero
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </motion.div>
       )}
