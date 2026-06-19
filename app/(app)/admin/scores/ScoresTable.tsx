@@ -4,7 +4,7 @@ import { useState } from "react"
 import { FadeIn, SlideUp } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { deleteScore, updateAdminScore } from "@/app/actions/admin"
+import { deleteScore, updateScore } from "@/app/actions/admin"
 
 type ScoreRecord = {
   id: string
@@ -45,7 +45,7 @@ export function ScoresTable({ initialScores }: { initialScores: ScoreRecord[] })
   }
 
   const handleUpdate = async (id: string) => {
-    const res = await updateAdminScore(id, editVal)
+    const res = await updateScore(id, editVal)
     if (res.error) {
       toast({ title: "Action Failed", description: res.error, variant: "destructive" })
     } else {

@@ -183,7 +183,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="font-display text-xl text-white font-bold">${Number(win.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 <p className="text-[10px] text-white/40 font-body font-bold uppercase tracking-widest mt-1">
-                  {win.draws?.month}/{win.draws?.year} • {win.tier}
+                  {(win.draws as any)?.month}/{(win.draws as any)?.year} • {win.tier}
                 </p>
               </div>
               <div className={`px-3 py-1 rounded border text-[10px] font-bold uppercase tracking-widest ${win.payout_status === 'paid' ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' : 'bg-gold-400/10 text-gold-400 border-gold-400/30'}`}>

@@ -110,7 +110,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
               <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3} className="w-full bg-navy-900/50 border border-white/10 rounded-xl p-3 text-white mt-1" />
             </div>
             <div>
-              <label className="text-[10px] uppercase font-bold tracking-widest text-white/50">Events JSON (e.g. [{"title":"...", "desc":"...", "date":"...", "img":"..."}])</label>
+              <label className="text-[10px] uppercase font-bold tracking-widest text-white/50">{"Events JSON (e.g. [{\"title\":\"...\", \"desc\":\"...\", \"date\":\"...\", \"img\":\"...\"}])"}</label>
               <textarea value={events} onChange={e=>setEvents(e.target.value)} rows={4} className="w-full bg-navy-900/50 border border-white/10 rounded-xl p-3 text-white mt-1 font-mono text-xs" />
             </div>
             <div className="flex gap-4 pt-2">

@@ -16,8 +16,8 @@ export function DrawExecuteButton() {
     setIsSimulating(true)
     try {
       const d = new Date()
-      // Mocking pool amount to $50,000
-      const results = await simulateDraw(d.getMonth() + 1, d.getFullYear(), 'algorithmic', 50000)
+      // Mocking pool amount is handled inside the server action
+      const results = await simulateDraw(d.getMonth() + 1, d.getFullYear(), 'algorithmic')
       setSimResults(results)
       toast({
         title: "Simulation Complete",
@@ -40,8 +40,8 @@ export function DrawExecuteButton() {
     setIsExecuting(true)
     try {
       const d = new Date()
-      // Mocking pool amount to $50,000 for demonstration
-      await executeDraw(d.getMonth() + 1, d.getFullYear(), 'algorithmic', 50000)
+      // Mocking pool amount is handled inside the server action
+      await executeDraw(d.getMonth() + 1, d.getFullYear(), 'algorithmic')
       setSimResults(null)
       toast({
         title: "Draw Authorized",

@@ -219,7 +219,7 @@ export async function executeDraw(
       const { data: profile } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)').eq('id', w.userId).single()
       if (profile && profile.auth_users) {
         await sendEmail({
-          to: profile.auth_users.email,
+          to: (profile.auth_users as any).email || (profile.auth_users as any)?.[0]?.email,
           subject: 'You Won the Digital Heroes Draw!',
           body: `Congratulations ${profile.name}, you matched ${w.matchCount} numbers and won $${w.amount}. Log in to claim your prize.`
         })
@@ -249,7 +249,7 @@ export async function publishDraw(drawId: string) {
     for (const p of profiles) {
       if (p.auth_users) {
         await sendEmail({
-          to: p.auth_users.email,
+          to: (p.auth_users as any).email || (p.auth_users as any)?.[0]?.email,
           subject: 'New Draw Results Published',
           body: `Hi ${p.name}, the latest draw results have been published. Check the dashboard to see the impact generated.`
         })

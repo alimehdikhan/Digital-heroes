@@ -44,8 +44,8 @@ export async function submitScore(prevState: ActionState, formData: FormData): P
     .eq('id', user.id)
     .single()
 
-  const isActive = ['active', 'trialing'].includes(profile.subscription_status)
-  const isGracePeriod = profile.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date()
+  const isActive = profile ? ['active', 'trialing'].includes(profile.subscription_status) : false
+  const isGracePeriod = profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date()
   
   if (!profile || (!isActive && !isGracePeriod)) {
     return { error: 'An active subscription is required to submit scores.' }
