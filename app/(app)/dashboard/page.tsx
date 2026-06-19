@@ -46,18 +46,18 @@ export default async function DashboardPage() {
 
   const totalWinnings = userWinnings?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0
 
-  // Draws entered
-  // We can approximate "draws entered" by seeing if they were an active participant in draws.
-  // Actually, wait, do we have a draw_participants table? No, participants are dynamic from scores/subs.
-  // Let's just list the upcoming draw date based on endOfMonth.
-  const upcomingDrawDate = endOfMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-
   // Draw countdown: days until end of current month
   const now = new Date()
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   const diffMs = endOfMonth.getTime() - now.getTime()
   const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
   const hoursLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))
+
+  // Draws entered
+  // We can approximate "draws entered" by seeing if they were an active participant in draws.
+  // Actually, wait, do we have a draw_participants table? No, participants are dynamic from scores/subs.
+  // Let's just list the upcoming draw date based on endOfMonth.
+  const upcomingDrawDate = endOfMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const minsLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)))
 
   const isActive = profile?.subscription_status === 'active' || profile?.subscription_status === 'trialing'
