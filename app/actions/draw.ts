@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
+import { verifyAdmin } from '@/app/actions/admin'
 
 export type DrawResult = {
   winningNumbers: number[];
@@ -69,6 +70,7 @@ export async function simulateDraw(
   year: number, 
   mode: 'random' | 'algorithmic'
 ): Promise<DrawResult> {
+  await verifyAdmin()
   const supabase = await createClient()
   
   // Get active users and their latest 5 scores
@@ -192,6 +194,7 @@ export async function executeDraw(
   year: number, 
   mode: 'random' | 'algorithmic'
 ) {
+  await verifyAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -276,6 +279,7 @@ export async function executeDraw(
 }
 
 export async function publishDraw(drawId: string) {
+  await verifyAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')

@@ -11,18 +11,23 @@ export function ScoreManager({ initialScores }: { initialScores: any[] }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState<number>(0)
   const [isAdding, setIsAdding] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [newScore, setNewScore] = useState<string>("")
   const [newDate, setNewDate] = useState<string>("")
   const { toast } = useToast()
 
   const handleDelete = async (id: string) => {
+    setIsSubmitting(true)
     const res = await deleteUserScore(id)
+    setIsSubmitting(false)
     if (res.error) toast({ title: "Error", description: res.error, variant: "destructive" })
     else setScores(scores.filter(s => s.id !== id))
   }
 
   const handleUpdate = async (id: string) => {
+    setIsSubmitting(true)
     const res = await updateUserScore(id, editVal)
+    setIsSubmitting(false)
     if (res.error) toast({ title: "Error", description: res.error, variant: "destructive" })
     else {
       setScores(scores.map(s => s.id === id ? { ...s, score: editVal } : s))
@@ -32,10 +37,12 @@ export function ScoreManager({ initialScores }: { initialScores: any[] }) {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
     const formData = new FormData()
     formData.append("score", newScore)
     formData.append("date", newDate)
     const res = await submitScore({}, formData)
+    setIsSubmitting(false)
     if (res.error) toast({ title: "Error", description: res.error, variant: "destructive" })
     else {
       toast({ title: "Success", description: "Score added" })
@@ -56,8 +63,8 @@ export function ScoreManager({ initialScores }: { initialScores: any[] }) {
       {isAdding && (
         <form onSubmit={handleAdd} className="glass-card p-4 flex gap-4 items-center">
           <input type="number" min="1" max="45" value={newScore} onChange={e => setNewScore(e.target.value)} required placeholder="Score (1-45)" className="bg-navy-900 border border-white/10 text-white px-3 py-2 rounded text-sm w-32" />
-          <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} required className="bg-navy-900 border border-white/10 text-white px-3 py-2 rounded text-sm" />
-          <Button type="submit" size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">Save</Button>
+          <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} required disabled={isSubmitting} className="bg-navy-900 border border-white/10 text-white px-3 py-2 rounded text-sm" />
+          <Button type="submit" size="sm" disabled={isSubmitting} className="bg-emerald-500 hover:bg-emerald-600 text-white">{isSubmitting ? 'Saving...' : 'Save'}</Button>
         </form>
       )}
 
@@ -69,9 +76,9 @@ export function ScoreManager({ initialScores }: { initialScores: any[] }) {
             </div>
             {editingId === item.id ? (
               <div className="flex items-center gap-2">
-                <input type="number" min="1" max="45" value={editVal} onChange={e => setEditVal(Number(e.target.value))} className="w-16 bg-navy-900 border border-white/10 text-white px-2 py-1 rounded" />
-                <Button size="sm" onClick={() => handleUpdate(item.id)} className="h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white">Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 text-[10px] text-white/50">Cancel</Button>
+                <input type="number" min="1" max="45" value={editVal} onChange={e => setEditVal(Number(e.target.value))} disabled={isSubmitting} className="w-16 bg-navy-900 border border-white/10 text-white px-2 py-1 rounded" />
+                <Button size="sm" onClick={() => handleUpdate(item.id)} disabled={isSubmitting} className="h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white">Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} disabled={isSubmitting} className="h-7 text-[10px] text-white/50">Cancel</Button>
               </div>
             ) : (
               <div>
@@ -81,8 +88,8 @@ export function ScoreManager({ initialScores }: { initialScores: any[] }) {
             )}
           </div>
           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-             <Button size="sm" variant="ghost" onClick={() => {setEditingId(item.id); setEditVal(item.score)}} className="h-8 text-xs text-gold-400">Edit</Button>
-             <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)} className="h-8 text-xs text-red-400">Delete</Button>
+             <Button size="sm" variant="ghost" onClick={() => {setEditingId(item.id); setEditVal(item.score)}} disabled={isSubmitting} className="h-8 text-xs text-gold-400">Edit</Button>
+             <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)} disabled={isSubmitting} className="h-8 text-xs text-red-400">Delete</Button>
           </div>
         </StaggerItem>
       ))}

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
 
 // Add a reusable admin verification function
-async function verifyAdmin() {
+export async function verifyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
