@@ -214,3 +214,52 @@ export async function getAnalyticsData() {
     financialData
   }
 }
+
+export async function verifyProof(proofId: string, action: 'approve' | 'reject') {
+  await verifyAdmin()
+
+  const { data: proof } = await supabaseAdmin
+    .from('winner_proofs')
+    .select('id, draw_winner_id, status')
+    .eq('id', proofId)
+    .single()
+
+  if (!proof || proof.status !== 'pending') {
+    return { success: false, error: 'Proof not found or already processed' }
+  }
+
+  // Update proof status
+  const { error: proofError } = await supabaseAdmin
+    .from('winner_proofs')
+    .update({ 
+      status: action === 'approve' ? 'approved' : 'rejected',
+      reviewed_at: new Date().toISOString()
+    })
+    .eq('id', proofId)
+
+  if (proofError) {
+    return { success: false, error: 'Failed to update proof status' }
+  }
+
+  // If approved, mark the winner as paid (or approved)
+  if (action === 'approve') {
+    await supabaseAdmin
+      .from('draw_winners')
+      .update({ payout_status: 'paid' })
+      .eq('id', proof.draw_winner_id)
+  } else {
+    // If rejected, we might want to change payout_status back to something else, or keep it pending
+    // so the user can upload a new proof.
+    await supabaseAdmin
+      .from('draw_winners')
+      .update({ payout_status: 'pending' })
+      .eq('id', proof.draw_winner_id)
+  }
+
+  // Use dynamic import for revalidatePath to avoid edge issues if needed, but it's safe in server action
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/draws')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}

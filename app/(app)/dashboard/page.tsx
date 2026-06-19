@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { EditCharity } from "./EditCharity"
 import { ScoreManager } from "./ScoreManager"
+import { WinnerProofUpload } from "./WinnerProofUpload"
 
 export default async function DashboardPage() {
   const latestScores = await getLatestScores()
@@ -39,10 +40,17 @@ export default async function DashboardPage() {
     ? (latestDraw.rollover_amount || latestDraw.jackpot_amount || 0)
     : 0
 
-  // User winnings & participated draws
+  // User winnings & participated draws & proofs
   const { data: userWinnings } = await supabaseAdmin
     .from('draw_winners')
-    .select('amount, payout_status, tier, draws(month, year)')
+    .select(`
+      id,
+      amount, 
+      payout_status, 
+      tier, 
+      draws(month, year),
+      winner_proofs(status)
+    `)
     .eq('user_id', user?.id || '')
     .order('created_at', { ascending: false })
 
@@ -181,17 +189,40 @@ export default async function DashboardPage() {
             </div>
           )}
           {userWinnings?.map((win, i) => (
-            <StaggerItem key={i} className="glass-card rounded-xl p-5 flex items-center justify-between border border-white/5">
-              <div>
-                <p className="font-display text-xl text-white font-bold">${Number(win.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                <p className="text-[10px] text-white/40 font-body font-bold uppercase tracking-widest mt-1">
-                  {(win.draws as any)?.month}/{(win.draws as any)?.year} • {win.tier}
-                </p>
-              </div>
-              <div className={`px-3 py-1 rounded border text-[10px] font-bold uppercase tracking-widest ${win.payout_status === 'paid' ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' : 'bg-gold-400/10 text-gold-400 border-gold-400/30'}`}>
-                {win.payout_status || 'PENDING'}
-              </div>
-            </StaggerItem>
+            <div key={win.id} className="space-y-4">
+              <StaggerItem className="glass-card rounded-xl p-5 flex items-center justify-between border border-white/5">
+                <div>
+                  <p className="font-display text-xl text-white font-bold">${Number(win.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/40 font-body font-bold uppercase tracking-widest mt-1">
+                    {(win.draws as any)?.month}/{(win.draws as any)?.year} • {win.tier}
+                  </p>
+                </div>
+                <div className={`px-3 py-1 rounded border text-[10px] font-bold uppercase tracking-widest ${win.payout_status === 'paid' ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' : 'bg-gold-400/10 text-gold-400 border-gold-400/30'}`}>
+                  {win.payout_status || 'PENDING'}
+                </div>
+              </StaggerItem>
+              
+              {/* Show proof upload if pending and no pending proof exists */}
+              {win.payout_status === 'pending' && (!win.winner_proofs || win.winner_proofs.length === 0 || win.winner_proofs[0].status === 'rejected') && (
+                <StaggerItem>
+                  <WinnerProofUpload 
+                    winnerId={win.id} 
+                    drawMonth={(win.draws as any)?.month || ''} 
+                    drawYear={(win.draws as any)?.year || new Date().getFullYear()} 
+                  />
+                </StaggerItem>
+              )}
+              {/* Show pending status if proof is uploaded and pending review */}
+              {win.payout_status === 'pending' && win.winner_proofs?.[0]?.status === 'pending' && (
+                <StaggerItem className="p-4 bg-emerald-400/10 border border-emerald-400/30 rounded-xl flex items-center gap-3">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-400 shrink-0"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  <div>
+                    <p className="text-emerald-400 font-bold font-display">Proof Under Review</p>
+                    <p className="text-emerald-400/70 text-xs font-body mt-1">Our team is verifying your golf score.</p>
+                  </div>
+                </StaggerItem>
+              )}
+            </div>
           ))}
         </StaggerContainer>
       </section>

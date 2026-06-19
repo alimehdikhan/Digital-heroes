@@ -1,6 +1,7 @@
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { DrawExecuteButton } from "./DrawExecuteButton"
 import { DrawCountdown } from "./DrawCountdown"
+import { ProofVerificationTable } from "./ProofVerificationTable"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 
 export default async function AdminDrawsPage() {
@@ -18,6 +19,18 @@ export default async function AdminDrawsPage() {
     badge: d.jackpot_rolled_over ? "Rollover Occurred" : "Jackpot Won",
     color: d.jackpot_rolled_over ? "gold" : "emerald"
   })) || []
+
+  // Fetch pending proofs
+  const { data: pendingProofs } = await supabaseAdmin
+    .from('winner_proofs')
+    .select(`
+      id, proof_url, status, created_at,
+      draw_winners ( amount, tier ),
+      draws ( month, year ),
+      profiles ( name )
+    `)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
 
   return (
     <div className="space-y-12 pb-12">
@@ -74,6 +87,18 @@ export default async function AdminDrawsPage() {
           </div>
         </StaggerItem>
       </StaggerContainer>
+
+      {/* Proof Verification Section */}
+      <section className="space-y-8 pt-8">
+        <FadeIn className="space-y-2">
+          <h3 className="font-display text-3xl md:text-4xl text-white font-bold">Winner Verification</h3>
+          <p className="text-white/50 font-body text-sm">Review uploaded golf scores from winners before releasing payouts.</p>
+        </FadeIn>
+        
+        <StaggerContainer>
+          <ProofVerificationTable proofs={pendingProofs || []} />
+        </StaggerContainer>
+      </section>
 
       {/* Recent Draw Ledger */}
       <section className="space-y-8 pt-8">
