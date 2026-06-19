@@ -14,7 +14,7 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  charity_id: z.string().uuid('Please select a valid charity'),
+  charity_id: z.string().optional().or(z.literal('')),
 })
 
 export type ActionState = {
@@ -69,15 +69,17 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
 
     const supabase = await createClient()
 
+    const metaData: any = { full_name: name }
+    if (charity_id) {
+      metaData.supported_charity_id = charity_id
+    }
+
     // Supabase Auth Signup
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          full_name: name,
-          supported_charity_id: charity_id,
-        },
+        data: metaData,
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
       },
     })
