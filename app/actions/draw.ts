@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, buildEmailTemplate } from '@/lib/email'
 
 export type DrawResult = {
   winningNumbers: number[];
@@ -221,7 +221,16 @@ export async function executeDraw(
         await sendEmail({
           to: (profile.auth_users as any).email || (profile.auth_users as any)?.[0]?.email,
           subject: 'You Won the Digital Heroes Draw!',
-          body: `Congratulations ${profile.name}, you matched ${w.matchCount} numbers and won $${w.amount}. Log in to claim your prize.`
+          body: `Congratulations ${profile.name}, you matched ${w.matchCount} numbers and won $${w.amount}. Log in to claim your prize.`,
+          html: buildEmailTemplate(
+            'You are a Winner! 🏆',
+            `<p>Congratulations <strong>${profile.name}</strong>!</p>
+             <p>The algorithmic vault has spoken. You matched <strong>${w.matchCount} numbers</strong> in the latest Digital Heroes draw.</p>
+             <p>Your prize amount is <strong>$${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>.</p>
+             <p>To claim your prize, please log in to your dashboard and submit a screenshot of your winning scorecard for manual verification.</p>`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+            'Claim Your Prize'
+          )
         })
       }
     }
@@ -251,7 +260,15 @@ export async function publishDraw(drawId: string) {
         await sendEmail({
           to: (p.auth_users as any).email || (p.auth_users as any)?.[0]?.email,
           subject: 'New Draw Results Published',
-          body: `Hi ${p.name}, the latest draw results have been published. Check the dashboard to see the impact generated.`
+          body: `Hello ${p.name}, the results for the latest draw have been published. Check your dashboard to see if you won!`,
+          html: buildEmailTemplate(
+            'Draw Results Are Live',
+            `<p>Hello <strong>${p.name}</strong>,</p>
+             <p>The algorithmic vault has completed processing the latest scores, and the draw results have been published.</p>
+             <p>Head over to your dashboard to view the winning numbers and see if you secured a prize.</p>`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+            'View Results'
+          )
         })
       }
     }

@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { sendEmail, buildEmailTemplate } from '@/lib/email'
 
 // Add a reusable admin verification function
 async function verifyAdmin() {
@@ -247,6 +248,35 @@ export async function verifyProof(proofId: string, action: 'approve' | 'reject')
       .from('draw_winners')
       .update({ payout_status: 'paid' })
       .eq('id', proof.draw_winner_id)
+
+    // Notify user of payout
+    const { data: winnerInfo } = await supabaseAdmin
+      .from('draw_winners')
+      .select('amount, user_id, profiles(name, auth_users!inner(email))')
+      .eq('id', proof.draw_winner_id)
+      .single()
+
+    if (winnerInfo && winnerInfo.profiles) {
+      const email = (winnerInfo.profiles as any).auth_users?.email || (winnerInfo.profiles as any).auth_users?.[0]?.email
+      const name = winnerInfo.profiles.name || 'Hero'
+      
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: 'Your Prize Has Been Processed! 🏆',
+          body: `Hi ${name}, your proof was approved and your $${winnerInfo.amount} prize has been processed!`,
+          html: buildEmailTemplate(
+            'Prize Processed',
+            `<p>Hello <strong>${name}</strong>,</p>
+             <p>Great news! Our administrators have verified your winning scorecard.</p>
+             <p>Your prize of <strong>$${winnerInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> has now been processed and sent to your account.</p>
+             <p>Keep playing and staying active on the leaderboard!</p>`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+            'View Dashboard'
+          )
+        })
+      }
+    }
   } else {
     // If rejected, we might want to change payout_status back to something else, or keep it pending
     // so the user can upload a new proof.
