@@ -258,7 +258,7 @@ export async function verifyProof(proofId: string, action: 'approve' | 'reject')
 
     if (winnerInfo && winnerInfo.profiles) {
       const email = (winnerInfo.profiles as any).auth_users?.email || (winnerInfo.profiles as any).auth_users?.[0]?.email
-      const name = winnerInfo.profiles.name || 'Hero'
+      const name = (winnerInfo.profiles as any).name || (Array.isArray(winnerInfo.profiles) && winnerInfo.profiles[0]?.name) || 'Hero'
       
       if (email) {
         await sendEmail({
