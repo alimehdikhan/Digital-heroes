@@ -50,6 +50,7 @@ export async function createSubscription(plan: 'monthly' | 'yearly', charityId: 
     return { subscriptionId: subscription.id, keyId: process.env.RAZORPAY_KEY_ID }
   } catch (error: any) {
     console.error('Razorpay session creation failed:', error)
-    return { error: error.message || 'Failed to create subscription' }
+    const errorMsg = error?.error?.description || error?.message || 'Failed to create subscription. Check Razorpay keys/plans.'
+    return { error: errorMsg }
   }
 }
