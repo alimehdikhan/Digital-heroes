@@ -3,13 +3,12 @@ import { generateRandomNumbers } from './random'
 /**
  * Algorithmic Draw Mode
  *
- * Deterministic: the same set of participant scores always produces the same 5 numbers.
+ * Weighted by most frequent user scores.
  * Algorithm:
- * 1. Collect ALL scores from all participants, sort ascending.
- * 2. Encode as a comma-separated string.
- * 3. Hash with SHA-256 (Web Crypto API).
- * 4. Walk the hash bytes, converting each byte to a number in 1–45.
- * 5. Collect 5 unique numbers; fall back to random if hash is exhausted.
+ * 1. Calculate the frequency of all submitted scores (1-45).
+ * 2. Create a weighted pool where highly frequent scores appear more often.
+ * 3. Draw 5 unique numbers from this pool probabilistically.
+ * 4. Fallback to random if pool is exhausted.
  */
 export async function generateAlgorithmicNumbers(
   allScores: number[]
@@ -19,28 +18,47 @@ export async function generateAlgorithmicNumbers(
     return generateRandomNumbers()
   }
 
-  const sorted = [...allScores].sort((a, b) => a - b)
-  const payload = sorted.join(',')
+  // 1. Calculate frequency of each number 1-45
+  const frequencies = new Map<number, number>()
+  for (let i = 1; i <= 45; i++) frequencies.set(i, 0)
+  
+  for (const score of allScores) {
+    if (score >= 1 && score <= 45) {
+      frequencies.set(score, frequencies.get(score)! + 1)
+    }
+  }
 
-  const encoder = new TextEncoder()
-  const data = encoder.encode(payload)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  // 2. Create weighted pool (give base weight of 1 so unselected numbers still have a tiny chance)
+  const pool: number[] = []
+  for (const [num, freq] of Array.from(frequencies.entries())) {
+    const weight = freq > 0 ? freq * 2 : 1 // multiply frequency to heavily weight popular scores
+    for (let i = 0; i < weight; i++) {
+      pool.push(num)
+    }
+  }
 
-  // Extract 5 unique numbers using explicit array (avoids Set spread)
+  // 3. Draw 5 unique numbers pseudo-randomly from the weighted pool
   const numbers: number[] = []
   const seen = new Set<number>()
 
-  for (const byte of hashArray) {
-    if (seen.size >= 5) break
-    const num = (byte % 45) + 1
+  while (seen.size < 5 && pool.length > 0) {
+    const randomIndex = Math.floor(Math.random() * pool.length)
+    const num = pool[randomIndex]
+    
     if (!seen.has(num)) {
       seen.add(num)
       numbers.push(num)
     }
+    
+    // Remove all instances of this chosen number from the pool so we don't draw it again
+    for (let i = pool.length - 1; i >= 0; i--) {
+      if (pool[i] === num) {
+        pool.splice(i, 1)
+      }
+    }
   }
 
-  // Fallback if hash didn't yield 5 unique values (extremely rare)
+  // 4. Fallback if something goes wrong
   while (seen.size < 5) {
     const fallbacks = generateRandomNumbers()
     for (const n of fallbacks) {
