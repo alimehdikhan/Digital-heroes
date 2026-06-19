@@ -1,9 +1,8 @@
-"use client"
-
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
-
+import { DonateButton } from "@/components/DonateButton"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import Script from "next/script"
 
 export default async function CharityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -35,12 +34,11 @@ export default async function CharityDetailPage({ params }: { params: Promise<{ 
             <Button size="lg" className="h-16 px-12 btn-primary uppercase tracking-widest font-black text-navy-950 shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500">
               Commit Support
             </Button>
-            <Button size="lg" variant="outline" className="h-16 px-12 border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 uppercase tracking-widest font-black bg-transparent">
-              Independent Donation
-            </Button>
+            <DonateButton charityId={charity.id} charityName={charity.name} />
           </div>
         </SlideUp>
       </section>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       {/* Mission Section */}
       <section className="py-24 px-5 md:px-20 max-w-7xl mx-auto">

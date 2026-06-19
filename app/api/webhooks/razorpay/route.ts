@@ -72,11 +72,44 @@ export async function POST(req: Request) {
         const payment = payload.payload.payment.entity
         // If it's linked to a subscription
         if (payment.subscription_id) {
-          // We can set status to past_due or leave it. Razorpay automatically retries.
-          // But to be safe, we'll mark it as past_due if it's the latest payment that failed.
           await supabaseAdmin.from('profiles').update({
             subscription_status: 'past_due',
           }).eq('razorpay_subscription_id', payment.subscription_id)
+        }
+        break
+      }
+
+      case 'order.paid': {
+        // Handle independent charity donations
+        const order = payload.payload.order.entity
+        const notes = order.notes || {}
+        
+        if (notes.type === 'independent_donation' && notes.charityId) {
+          const amountInRupees = order.amount / 100
+          
+          // Update charity's total_contributed
+          const { data: charity } = await supabaseAdmin
+            .from('charities')
+            .select('total_contributed')
+            .eq('id', notes.charityId)
+            .single()
+
+          if (charity) {
+            await supabaseAdmin
+              .from('charities')
+              .update({ total_contributed: (charity.total_contributed || 0) + amountInRupees })
+              .eq('id', notes.charityId)
+          }
+
+          // Send notification if user is logged in
+          if (notes.supabaseUserId && notes.supabaseUserId !== 'anonymous') {
+            await supabaseAdmin.from('notifications').insert({
+              user_id: notes.supabaseUserId,
+              type: 'donation',
+              title: 'Donation Confirmed',
+              message: `Your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName} has been confirmed. Thank you, Hero!`,
+            })
+          }
         }
         break
       }

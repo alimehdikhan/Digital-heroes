@@ -1,7 +1,9 @@
 import { SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import Script from "next/script"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { DonateButton } from "@/components/DonateButton"
 
 export default async function CharitiesPage({ searchParams }: { searchParams: Promise<{ q?: string, filter?: string }> }) {
   const { q, filter } = await searchParams;
@@ -29,6 +31,7 @@ export default async function CharitiesPage({ searchParams }: { searchParams: Pr
     : null
 
   return (
+    <>
     <div className="pt-32 pb-24 px-5 md:px-20 max-w-7xl mx-auto min-h-dvh flex flex-col items-center">
       <SlideUp className="text-center mb-20 max-w-3xl mx-auto">
         <span className="font-body text-xs text-emerald-400 font-bold tracking-[0.4em] mb-6 block uppercase">The Gold Standard of Giving</span>
@@ -91,14 +94,22 @@ export default async function CharitiesPage({ searchParams }: { searchParams: Pr
                       Total Contributed
                     </p>
                   </div>
-                  {charity.website_url && (
-                    <a href={charity.website_url} target="_blank" rel="noreferrer">
-                      <Button variant="ghost" className="text-white hover:bg-white/5 hover:text-white">
-                        Visit Site &rarr;
-                      </Button>
-                    </a>
-                  )}
-                </div>
+                {charity.website_url && (
+                  <a href={charity.website_url} target="_blank" rel="noreferrer">
+                    <Button variant="ghost" className="text-white hover:bg-white/5 hover:text-white">
+                      Visit Site &rarr;
+                    </Button>
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-3 mt-4">
+                <Link href={`/charities/${charity.id}`} className="flex-1">
+                  <Button variant="outline" className="w-full h-10 border-white/20 text-white hover:bg-white/5 uppercase tracking-widest font-bold text-[10px] bg-transparent">
+                    Learn More
+                  </Button>
+                </Link>
+                <DonateButton charityId={charity.id} charityName={charity.name} />
+              </div>
               </div>
             </StaggerItem>
           ))}
@@ -122,5 +133,7 @@ export default async function CharitiesPage({ searchParams }: { searchParams: Pr
         </Link>
       </ScaleIn>
     </div>
+    <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+    </>
   )
 }
