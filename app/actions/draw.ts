@@ -24,14 +24,41 @@ export type DrawResult = {
 }
 
 // Helper to generate 5 unique numbers between 1 and 45
-function generateWinningNumbers(mode: 'random' | 'algorithmic'): number[] {
+function generateWinningNumbers(mode: 'random' | 'algorithmic', userScoresMap?: Map<string, number[]>): number[] {
   const nums = new Set<number>()
   
-  // Algorithmic mode could use actual historical data. 
-  // For now, we'll just simulate it as a slightly different randomizer.
-  while (nums.size < 5) {
-    const r = Math.floor(Math.random() * 45) + 1
-    nums.add(r)
+  if (mode === 'algorithmic' && userScoresMap && userScoresMap.size > 0) {
+    // Calculate frequency of each number chosen by users
+    const frequencies = new Map<number, number>()
+    for (let i = 1; i <= 45; i++) frequencies.set(i, 0)
+    
+    for (const scores of Array.from(userScoresMap.values())) {
+      for (const s of scores) {
+        frequencies.set(s, (frequencies.get(s) || 0) + 1)
+      }
+    }
+    
+    // Sort numbers by least frequency to reward uncommon choices (algorithmic edge)
+    const weightedPool: number[] = []
+    const maxFreq = Math.max(...Array.from(frequencies.values()))
+    
+    for (const [num, freq] of Array.from(frequencies.entries())) {
+      // Inverse weighting: (maxFreq - freq + 1) tickets in the pool
+      const weight = (maxFreq - freq) + 1
+      for (let i = 0; i < weight; i++) {
+        weightedPool.push(num)
+      }
+    }
+    
+    while (nums.size < 5) {
+      const rIndex = Math.floor(Math.random() * weightedPool.length)
+      nums.add(weightedPool[rIndex])
+    }
+  } else {
+    while (nums.size < 5) {
+      const r = Math.floor(Math.random() * 45) + 1
+      nums.add(r)
+    }
   }
   
   return Array.from(nums).sort((a, b) => a - b)
@@ -47,17 +74,26 @@ export async function simulateDraw(
   // Get active users and their latest 5 scores
   const { data: activeProfiles } = await supabaseAdmin
     .from('profiles')
-    .select('id, subscription_status, subscription_plan')
+    .select('id, subscription_status, subscription_plan, charity_percentage')
     .in('subscription_status', ['active', 'trialing'])
 
   const activeUserIds = activeProfiles?.map(p => p.id) || []
 
-  // Auto-calculate pool amount
-  const monthlyCount = activeProfiles?.filter(p => p.subscription_plan === 'monthly').length || 0
-  const yearlyCount = activeProfiles?.filter(p => p.subscription_plan === 'yearly').length || 0
-  // Default to $50k base if no users yet for testing, otherwise actual calculated amount
-  const calculatedPool = (monthlyCount * 20) + (yearlyCount * 16.66)
+  // Auto-calculate pool amount and accurate charity contribution
+  let calculatedPool = 0
+  let calculatedCharity = 0
+
+  if (activeProfiles && activeProfiles.length > 0) {
+    for (const p of activeProfiles) {
+      const fee = p.subscription_plan === 'yearly' ? 16.66 : 20.00
+      calculatedPool += fee
+      const pct = p.charity_percentage || 10
+      calculatedCharity += fee * (pct / 100)
+    }
+  }
+
   const poolAmount = calculatedPool > 0 ? calculatedPool : 50000
+  const charityContribution = calculatedPool > 0 ? calculatedCharity : 5000
 
   // Fetch all scores for these users, then group by user and take latest 5
   // For performance in a real app, this should be a Supabase RPC or view.
@@ -79,10 +115,9 @@ export async function simulateDraw(
     }
   }
 
-  const winningNumbers = generateWinningNumbers(mode)
+  const winningNumbers = generateWinningNumbers(mode, userScoresMap)
   
   // Financials
-  const charityContribution = poolAmount * 0.10 // 10% minimum
   const netPool = poolAmount - charityContribution
   
   // Check for previous rollover

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { FadeIn, SlideUp } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { updateUserSubscription } from "@/app/actions/admin"
+import { updateUserProfile } from "@/app/actions/admin"
 
 type User = {
   id: string
@@ -22,15 +22,17 @@ export function UsersTable({ initialUsers }: { initialUsers: User[] }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editStatus, setEditStatus] = useState("")
   const [editPlan, setEditPlan] = useState("")
+  const [editName, setEditName] = useState("")
+  const [editRole, setEditRole] = useState("")
   const { toast } = useToast()
 
   const handleUpdate = async (id: string) => {
-    const res = await updateUserSubscription(id, editStatus, editPlan)
+    const res = await updateUserProfile(id, editStatus, editPlan, editName, editRole)
     if (res.error) {
       toast({ title: "Error", description: res.error, variant: "destructive" })
     } else {
-      toast({ title: "Success", description: "User subscription updated." })
-      setUsers(users.map(u => u.id === id ? { ...u, subscription_status: editStatus, subscription_plan: editPlan === 'none' ? null : editPlan } : u))
+      toast({ title: "Success", description: "User profile updated." })
+      setUsers(users.map(u => u.id === id ? { ...u, name: editName, role: editRole, subscription_status: editStatus, subscription_plan: editPlan === 'none' ? null : editPlan } : u))
       setEditingId(null)
     }
   }
@@ -97,15 +99,21 @@ export function UsersTable({ initialUsers }: { initialUsers: User[] }) {
               {filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-navy-900 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-gold-400 transition-colors uppercase font-display font-bold">
-                        {user.name.charAt(0)}
+                    {editingId === user.id ? (
+                      <div className="flex flex-col gap-2">
+                        <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="bg-navy-900 border border-white/10 text-white text-xs p-1 rounded w-full" placeholder="Name" />
                       </div>
-                      <div>
-                        <div className="text-white font-bold">{user.name}</div>
-                        <div className="text-white/50 text-xs mt-1">ID: {user.id.substring(0, 8)}...</div>
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-navy-900 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-gold-400 transition-colors uppercase font-display font-bold">
+                          {user.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-white font-bold">{user.name}</div>
+                          <div className="text-white/50 text-xs mt-1">ID: {user.id.substring(0, 8)}...</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </td>
                   <td className="px-8 py-6">
                     {editingId === user.id ? (
@@ -115,6 +123,10 @@ export function UsersTable({ initialUsers }: { initialUsers: User[] }) {
                           <option value="inactive">Inactive</option>
                           <option value="cancelled">Cancelled</option>
                           <option value="past_due">Past Due</option>
+                        </select>
+                        <select value={editRole} onChange={e=>setEditRole(e.target.value)} className="bg-navy-900 border border-white/10 text-white text-xs p-1 rounded mt-1">
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
                         </select>
                       </div>
                     ) : (
@@ -152,7 +164,13 @@ export function UsersTable({ initialUsers }: { initialUsers: User[] }) {
                       </div>
                     ) : (
                       <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => {setEditingId(user.id); setEditStatus(user.subscription_status); setEditPlan(user.subscription_plan || 'none');}} className="p-2.5 rounded-xl border border-white/10 hover:border-gold-400 hover:text-gold-400 transition-all text-white/50 bg-navy-900" title="Edit User">
+                        <button onClick={() => {
+                          setEditingId(user.id); 
+                          setEditStatus(user.subscription_status); 
+                          setEditPlan(user.subscription_plan || 'none');
+                          setEditName(user.name);
+                          setEditRole(user.role);
+                        }} className="p-2.5 rounded-xl border border-white/10 hover:border-gold-400 hover:text-gold-400 transition-all text-white/50 bg-navy-900" title="Edit User">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                         </button>
                       </div>

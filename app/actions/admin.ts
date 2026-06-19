@@ -36,13 +36,15 @@ export async function getAdminUsers() {
   return users
 }
 
-export async function updateUserSubscription(userId: string, status: string, plan: string) {
+export async function updateUserProfile(userId: string, status: string, plan: string, name: string, role: string) {
   await verifyAdmin()
   const { error } = await supabaseAdmin
     .from('profiles')
     .update({ 
       subscription_status: status,
-      subscription_plan: plan === 'none' ? null : plan
+      subscription_plan: plan === 'none' ? null : plan,
+      name: name,
+      role: role
     })
     .eq('id', userId)
 
@@ -213,6 +215,39 @@ export async function getAnalyticsData() {
   return {
     userGrowthData,
     financialData
+  }
+}
+
+export async function getAdminMetrics() {
+  await verifyAdmin()
+
+  const { count: activeSubs } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).in('subscription_status', ['active', 'trialing'])
+  
+  const { data: charities } = await supabaseAdmin.from('charities').select('total_contributed')
+  const totalCharity = charities?.reduce((acc, c) => acc + (c.total_contributed || 0), 0) || 0
+
+  const { data: draws } = await supabaseAdmin.from('draws').select('total_pool')
+  const totalPoolAllTime = draws?.reduce((acc, d) => acc + (d.total_pool || 0), 0) || 0
+
+  // For current jackpot size, we can mock a simulation call, or just use the last rollover + current pool
+  const { data: activeProfiles } = await supabaseAdmin.from('profiles').select('subscription_plan').in('subscription_status', ['active', 'trialing'])
+  let calculatedPool = 0
+  if (activeProfiles && activeProfiles.length > 0) {
+    for (const p of activeProfiles) {
+      calculatedPool += p.subscription_plan === 'yearly' ? 16.66 : 20.00
+    }
+  }
+  const poolAmount = calculatedPool > 0 ? calculatedPool : 50000
+
+  const { data: previousDraw } = await supabaseAdmin.from('draws').select('jackpot_rolled_over, rollover_amount').eq('status', 'completed').order('created_at', { ascending: false }).limit(1).single()
+  const rolloverAmount = previousDraw?.jackpot_rolled_over ? previousDraw.rollover_amount : 0
+  const currentJackpot = (poolAmount * 0.90 * 0.40) + rolloverAmount // roughly net pool * 40% + rollover
+
+  return {
+    totalRevenue: totalPoolAllTime + poolAmount, // Approximate total revenue
+    activeHeroes: activeSubs || 0,
+    currentJackpot,
+    totalCharity
   }
 }
 

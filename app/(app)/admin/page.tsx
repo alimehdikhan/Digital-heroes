@@ -1,6 +1,7 @@
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { getAdminMetrics } from "@/app/actions/admin"
 import { ReviewProofButtons } from "./ReviewProofButtons"
 import { MarkPaidButton } from "./MarkPaidButton"
 
@@ -19,6 +20,8 @@ export default async function AdminDashboardPage() {
     .select('*, profiles(name), draws(month, year)')
     .order('created_at', { ascending: false })
     .limit(50)
+
+  const metrics = await getAdminMetrics()
 
   return (
     <div className="space-y-12 pb-12">
@@ -47,10 +50,10 @@ export default async function AdminDashboardPage() {
       {/* Metric Cards Grid */}
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { icon: "payments", trend: "+12.5%", label: "Total Revenue", value: "$4,281,902", color: "gold" },
-          { icon: "person_celebrate", trend: "+842", label: "Active Heroes", value: "124,092", color: "emerald" },
-          { icon: "military_tech", trend: "Current Pool", label: "Jackpot Size", value: "$850,000", color: "gold" },
-          { icon: "eco", trend: "Distributed", label: "Charity Pool", value: "$1.2M", color: "emerald" }
+          { icon: "payments", trend: "Lifetime", label: "Total Revenue", value: `$${metrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
+          { icon: "person_celebrate", trend: "Active", label: "Active Heroes", value: metrics.activeHeroes.toLocaleString(), color: "emerald" },
+          { icon: "military_tech", trend: "Current Pool", label: "Jackpot Size", value: `$${metrics.currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
+          { icon: "eco", trend: "Distributed", label: "Charity Pool", value: `$${metrics.totalCharity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "emerald" }
         ].map((metric, i) => (
           <StaggerItem key={i} className={`glass-card p-8 rounded-2xl group hover:bg-white/5 transition-all duration-500 border border-white/5 ${metric.color === 'gold' ? 'hover:shadow-gold-glow hover:border-gold-400/30' : 'hover:shadow-emerald-glow hover:border-emerald-400/30'}`}>
             <div className="flex justify-between items-start mb-6">

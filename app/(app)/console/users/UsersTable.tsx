@@ -99,8 +99,8 @@ function UserRow({ user }: { user: User }) {
   const handleUpdate = async () => {
     setIsUpdating(true)
     try {
-      const { updateUserSubscription } = await import('@/app/actions/admin')
-      await updateUserSubscription(user.id, status, plan)
+      const { updateUserProfile } = await import('@/app/actions/admin')
+      await updateUserProfile(user.id, status, plan, user.name, user.role)
       // Optional: Add toast notification here
     } catch (error) {
       console.error(error)
