@@ -1,20 +1,14 @@
 "use server"
 
 import { createClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe/client'
-import { redirect } from 'next/navigation'
+import { razorpay } from '@/lib/razorpay/client'
 
-export async function createCheckoutSession(formData: FormData) {
-  const plan = formData.get('plan') as 'monthly' | 'yearly'
-  const charityId = formData.get('charityId') as string | null
-  const charityPctRaw = formData.get('charityPercentage')
-  const charityPercentage = charityPctRaw ? Math.max(10, parseFloat(charityPctRaw as string)) : 10
-
+export async function createSubscription(plan: 'monthly' | 'yearly', charityId: string | null, charityPercentage: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login')
+    throw new Error('Unauthorized')
   }
 
   // Ensure charity and percentage are stored in the user's profile if selected
@@ -26,42 +20,36 @@ export async function createCheckoutSession(formData: FormData) {
     await supabase.from('profiles').update(profileUpdate).eq('id', user.id)
   }
 
-  // In a real app, you would have these IDs in an env file or DB.
-  // Using placeholder Price IDs for demo purposes, or we could create them on the fly if test keys.
-  // For safety, we will just simulate success by passing `success_url` back to the site.
-  // Actually, since Stripe SDK is installed, let's create a session.
-  
-  // NOTE: If Stripe keys are placeholders, this will fail. We wrap in try/catch.
-  try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: plan === 'monthly' ? process.env.STRIPE_MONTHLY_PRICE_ID : process.env.STRIPE_YEARLY_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?checkout=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,
-      metadata: {
-        supabaseUserId: user.id,
-        plan: plan,
-      },
-    })
-
-    if (session.url) {
-      redirect(session.url)
-    }
-  } catch (error) {
-    console.error('Stripe session creation failed:', error)
-    // Fallback if Stripe keys aren't set up yet:
-    // Just update the profile directly so the user can test the app
+  // Fallback for development if Razorpay keys aren't set
+  if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID === 'dummy_key') {
+    console.warn('RAZORPAY_KEY_ID not set. Simulating subscription.')
     await supabase.from('profiles').update({
       subscription_status: 'active',
       subscription_plan: plan
     }).eq('id', user.id)
+    return { simulated: true }
+  }
 
-    redirect('/dashboard?checkout=simulated_success')
+  const planId = plan === 'monthly' ? process.env.RAZORPAY_PLAN_MONTHLY : process.env.RAZORPAY_PLAN_YEARLY
+
+  if (!planId) {
+    throw new Error('Razorpay plan IDs not configured.')
+  }
+
+  try {
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: planId,
+      customer_notify: 1,
+      total_count: plan === 'monthly' ? 120 : 10, // Max 10 years
+      notes: {
+        supabaseUserId: user.id,
+        plan: plan,
+      }
+    })
+
+    return { subscriptionId: subscription.id, keyId: process.env.RAZORPAY_KEY_ID }
+  } catch (error: any) {
+    console.error('Razorpay session creation failed:', error)
+    throw new Error(error.message || 'Failed to create subscription')
   }
 }
