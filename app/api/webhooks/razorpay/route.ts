@@ -42,12 +42,14 @@ export async function POST(req: Request) {
             subscription_expires_at: new Date(sub.current_end * 1000).toISOString(),
             razorpay_customer_id: customerId,
             razorpay_subscription_id: subscriptionId,
+            subscription_plan: sub.notes?.plan || 'monthly',
           }).eq('id', userId)
         } else {
           // Fallback if notes missing: lookup by subscription ID
           await supabaseAdmin.from('profiles').update({
             subscription_status: 'active',
             subscription_expires_at: new Date(sub.current_end * 1000).toISOString(),
+            subscription_plan: sub.notes?.plan || 'monthly',
           }).eq('razorpay_subscription_id', subscriptionId)
         }
         break
