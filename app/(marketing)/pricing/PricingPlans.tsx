@@ -18,6 +18,14 @@ export function PricingPlans({ charities }: { charities: any[] }) {
       setLoading(plan)
       const res = await createSubscription(plan, selectedCharity || null, charityPercentage)
       
+      if (res.error) {
+        if (res.error === 'Unauthorized') {
+          router.push('/login?next=/pricing')
+          return
+        }
+        throw new Error(res.error)
+      }
+
       if (res.simulated) {
         // Dev fallback
         router.push('/dashboard?checkout=simulated_success')

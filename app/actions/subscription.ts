@@ -8,7 +8,7 @@ export async function createSubscription(plan: 'monthly' | 'yearly', charityId: 
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    return { error: 'Unauthorized' }
   }
 
   // Ensure charity and percentage are stored in the user's profile if selected
@@ -33,7 +33,7 @@ export async function createSubscription(plan: 'monthly' | 'yearly', charityId: 
   const planId = plan === 'monthly' ? process.env.RAZORPAY_PLAN_MONTHLY : process.env.RAZORPAY_PLAN_YEARLY
 
   if (!planId) {
-    throw new Error('Razorpay plan IDs not configured.')
+    return { error: 'Razorpay plan IDs not configured.' }
   }
 
   try {
@@ -50,6 +50,6 @@ export async function createSubscription(plan: 'monthly' | 'yearly', charityId: 
     return { subscriptionId: subscription.id, keyId: process.env.RAZORPAY_KEY_ID }
   } catch (error: any) {
     console.error('Razorpay session creation failed:', error)
-    throw new Error(error.message || 'Failed to create subscription')
+    return { error: error.message || 'Failed to create subscription' }
   }
 }
