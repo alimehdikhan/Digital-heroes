@@ -42,15 +42,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/draws" className="font-body text-xs uppercase tracking-widest font-bold text-white/50 hover:text-gold-400 transition-colors">Draws</Link>
             <Link href="/profile" className="font-body text-xs uppercase tracking-widest font-bold text-white/50 hover:text-gold-400 transition-colors">Hero Profile</Link>
             {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
-              <a href="/console" className="font-body text-xs uppercase tracking-widest font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Admin Console</a>
+              <Link href="/admin" className="font-body text-xs uppercase tracking-widest font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Admin Console</Link>
             )}
           </nav>
         </div>
         
         <div className="flex items-center gap-4">
           {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
-            <Link href="/console" className="md:hidden text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center bg-emerald-400/10 rounded-lg p-2 border border-emerald-400/30">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <Link href="/admin" className="md:hidden text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center bg-emerald-400/10 rounded-lg px-3 py-2 border border-emerald-400/30 font-body text-[10px] uppercase tracking-widest font-bold">
+              Admin
             </Link>
           )}
           <Link href="/notifications" className="relative text-white/50 hover:text-gold-400 transition-colors bg-white/5 rounded-lg p-2 border border-white/10">
