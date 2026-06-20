@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
@@ -167,10 +168,11 @@ export default function LandingPage() {
           
           <ScaleIn delay={0.2} className="relative">
             <div className="aspect-square glass-card rounded-full p-2 flex items-center justify-center overflow-hidden border border-white/10">
-              <img 
+              <Image 
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQmTO6LgQIGQ6qpdO1c5wWyZvDLbyha5k4AnT9MyOYyfPdzSCiHSpulFMIE-wgOSeJ8PSORTdWMJ-9F3lVJMBd63Flwsi-drKw-Uew6Fl3U4Zn9567FqWlij7XhUkg6r1D9LWes0aT5QEOW0w1ezQOACa7bkHA2puTtttJ4GVkMRNjDjQqWMDWFXqnsgZTcCo39SF_PCwz_kbpUweJ9-1KC4gbHupbetcxS7MgUszAF0KgPxrEDD5-SN7bid86ur4NAanI0bgQJw" 
                 alt="Charity Impact" 
-                loading="lazy"
+                width={800}
+                height={800}
                 className="w-full h-full rounded-full object-cover mix-blend-screen opacity-80" 
               />
             </div>
