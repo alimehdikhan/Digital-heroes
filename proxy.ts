@@ -67,6 +67,24 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
+  // Real-time subscription check for highly interactive transactional routes
+  const isRestrictedPath = request.nextUrl.pathname.startsWith('/scores/new')
+  
+  if (user && isRestrictedPath) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_status, subscription_expires_at')
+      .eq('id', user.id)
+      .single()
+
+    const isActive = profile ? ['active', 'trialing'].includes(profile.subscription_status) : false
+    const isGracePeriod = profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date()
+
+    if (!profile || (!isActive && !isGracePeriod)) {
+      return NextResponse.redirect(new URL('/pricing', request.url))
+    }
+  }
+
   return supabaseResponse
 }
 
