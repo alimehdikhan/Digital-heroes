@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Fetch real data
-  const { data: profile } = await supabase.from('profiles').select('subscription_status, subscription_plan, subscription_expires_at, supported_charity_id, charity_percentage').eq('id', user?.id).single()
+  const { data: profile } = await supabase.from('profiles').select('subscription_status, subscription_plan, subscription_expires_at, supported_charity_id, charity_percentage, created_at').eq('id', user?.id).single()
   const { data: charities } = await supabaseAdmin.from('charities').select('id, name').eq('is_active', true)
   
   const { data: notifications } = await supabase
