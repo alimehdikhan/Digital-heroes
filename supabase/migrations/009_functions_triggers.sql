@@ -73,6 +73,7 @@ CREATE OR REPLACE FUNCTION get_draw_participants(
 )
 RETURNS TABLE (user_id UUID, scores SMALLINT[], subscription_plan TEXT)
 LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT
     s.user_id,
     ARRAY_AGG(s.score ORDER BY s.date DESC) AS scores,
     p.subscription_plan
