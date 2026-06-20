@@ -40,9 +40,8 @@ export function DrawExecuteButton() {
     
     setIsExecuting(true)
     try {
-      const d = new Date()
-      // Pool amount is now auto-calculated on the server
-      await executeDraw(d.getMonth() + 1, d.getFullYear(), mode)
+      if (!simResults?.drawId) throw new Error("No simulation results found to execute.")
+      await executeDraw(simResults.drawId)
       setSimResults(null)
       toast({
         title: "Draw Authorized",

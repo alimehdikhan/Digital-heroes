@@ -3,31 +3,28 @@
 
 -- Create bucket if it doesn't exist
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('winner_proofs', 'winner_proofs', true)
+VALUES ('winner-proofs', 'winner-proofs', false)
 ON CONFLICT (id) DO NOTHING;
 
--- RLS for winner_proofs bucket
-CREATE POLICY "Public Access"
-  ON storage.objects FOR SELECT
-  USING ( bucket_id = 'winner_proofs' );
+-- RLS for winner-proofs bucket
 
 CREATE POLICY "Authenticated users can upload proofs"
   ON storage.objects FOR INSERT
   WITH CHECK (
-    bucket_id = 'winner_proofs'
+    bucket_id = 'winner-proofs'
     AND auth.role() = 'authenticated'
   );
 
 CREATE POLICY "Users can update their own proofs"
   ON storage.objects FOR UPDATE
   USING (
-    bucket_id = 'winner_proofs'
+    bucket_id = 'winner-proofs'
     AND auth.role() = 'authenticated'
   );
 
 CREATE POLICY "Users can delete their own proofs"
   ON storage.objects FOR DELETE
   USING (
-    bucket_id = 'winner_proofs'
+    bucket_id = 'winner-proofs'
     AND auth.role() = 'authenticated'
   );

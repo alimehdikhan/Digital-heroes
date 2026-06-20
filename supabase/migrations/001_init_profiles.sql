@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   -- Future: org / multi-country
   org_id                  UUID,       -- FK added in migration 006
   country_code            TEXT        NOT NULL DEFAULT 'GB',
-  currency                TEXT        NOT NULL DEFAULT 'GBP',
+  currency                TEXT        NOT NULL DEFAULT 'INR',
 
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()

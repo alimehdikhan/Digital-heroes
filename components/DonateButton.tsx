@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { createDonationOrder, recordDonation } from '@/app/actions/donations'
+import { createDonationOrder } from '@/app/actions/donations'
+import { useToast } from "@/hooks/use-toast"
 
 declare global {
   interface Window {
@@ -19,6 +20,7 @@ export function DonateButton({ charityId, charityName }: { charityId: string; ch
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const { toast } = useToast()
 
   const effectiveAmount = customAmount ? parseInt(customAmount) : amount
 
@@ -48,13 +50,10 @@ export function DonateButton({ charityId, charityName }: { charityId: string; ch
       description: `Donation to ${result.charityName}`,
       order_id: result.orderId,
       handler: async (response: any) => {
-        // Record the donation
-        await recordDonation(
-          response.razorpay_order_id,
-          response.razorpay_payment_id,
-          charityId,
-          result.amount!
-        )
+        toast({
+          title: "Payment Successful",
+          description: "Thank you for your generous donation!",
+        })
         setSuccess(true)
         setIsProcessing(false)
       },

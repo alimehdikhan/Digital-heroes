@@ -133,8 +133,8 @@ export default async function DrawsPage() {
             {userWin && (
               <div className="mt-8 p-6 rounded-2xl bg-gold-400/10 border border-gold-400/30 text-center">
                 <p className="font-body text-xs text-gold-400 font-bold uppercase tracking-widest mb-2">You Won!</p>
-                <p className="font-display text-3xl text-gold-400 font-bold">${Number(userWin.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                {!userWin.paid_out && (
+                <p className="font-display text-3xl text-gold-400 font-bold">₹{Number(userWin.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                {userWin.payout_status === 'pending' && (
                   <Link href={`/proofs/${userWin.id}`} className="mt-4 inline-block">
                     <Button className="btn-primary px-8 h-10 uppercase tracking-widest font-bold text-xs">Submit Proof</Button>
                   </Link>

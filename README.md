@@ -7,7 +7,7 @@ Digital Heroes is a premium, subscription-driven web application where golf scor
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS, shadcn/ui, Framer Motion
 - **Database & Auth**: Supabase (PostgreSQL, Row Level Security, SSR Auth)
-- **Payments**: Stripe Checkout & Webhooks
+- **Payments**: Razorpay Checkout & Webhooks
 - **Analytics**: Recharts
 - **Validation**: Zod & React Hook Form
 
@@ -25,7 +25,7 @@ Copy the provided `.env.example` file to create your local environment file:
 ```bash
 cp .env.example .env.local
 ```
-Fill in the `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from your Supabase dashboard. Add your Stripe test keys.
+Fill in the `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from your Supabase dashboard. Add your Razorpay test keys.
 
 ### 3. Database Initialization (Supabase)
 This project uses raw SQL migrations to build the necessary tables, triggers, and RLS policies. 
@@ -70,8 +70,8 @@ This application is fully prepared for Vercel deployment.
 5. Deploy.
 
 **Important Production Notes:**
-- Ensure you swap your Stripe Test keys for Stripe Live keys in the Vercel environment variables.
-- Configure your Stripe Webhook endpoint in the Stripe Dashboard to point to `https://<your-domain>/api/webhooks/stripe` and update the `STRIPE_WEBHOOK_SECRET` in Vercel.
+- Ensure you swap your Razorpay Test keys for Razorpay Live keys in the Vercel environment variables.
+- Configure your Razorpay Webhook endpoint in the Razorpay Dashboard to point to `https://<your-domain>/api/webhooks/razorpay` and update the `RAZORPAY_WEBHOOK_SECRET` in Vercel.
 
 ## 📊 Business Logic Highlights
 - **Score Management**: Users can only log Stableford scores between 1-45. Only one score per date is allowed. A Supabase trigger automatically enforces a rolling maximum of 5 scores per user.

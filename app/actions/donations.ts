@@ -51,39 +51,3 @@ export async function createDonationOrder(charityId: string, amountInPaise: numb
   }
 }
 
-export async function recordDonation(
-  orderId: string, 
-  paymentId: string, 
-  charityId: string, 
-  amountInPaise: number
-) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Update the charity's total_contributed
-  const { data: charity } = await supabaseAdmin
-    .from('charities')
-    .select('total_contributed')
-    .eq('id', charityId)
-    .single()
-
-  if (charity) {
-    const amountInDollars = amountInPaise / 100
-    await supabaseAdmin
-      .from('charities')
-      .update({ total_contributed: (charity.total_contributed || 0) + amountInDollars })
-      .eq('id', charityId)
-  }
-
-  // If user is logged in, send them a notification
-  if (user) {
-    await supabaseAdmin.from('notifications').insert({
-      user_id: user.id,
-      type: 'donation',
-      title: 'Donation Received',
-      message: `Thank you for your ₹${(amountInPaise / 100).toLocaleString()} donation! Your generosity makes a real difference.`,
-    })
-  }
-
-  return { success: true }
-}

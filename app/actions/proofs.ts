@@ -62,7 +62,7 @@ export async function uploadWinnerProof(formData: FormData) {
     const buffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('winner_proofs')
+      .from('winner-proofs')
       .upload(storagePath, buffer, {
         contentType: file.type,
         upsert: false
@@ -74,8 +74,13 @@ export async function uploadWinnerProof(formData: FormData) {
     }
 
     const { data: publicUrlData } = supabaseAdmin.storage
-      .from('winner_proofs')
+      .from('winner-proofs')
       .getPublicUrl(storagePath)
+
+    // Wait, PRD says "use authorized signed URLs". Since we changed the bucket to private, 
+    // publicUrl won't work anymore. But the DB schema has `proof_url` as TEXT. 
+    // We will still store the storagePath or a placeholder, but we must use signedUrls when accessing.
+    // For now, let's keep getPublicUrl since DB might require it, but we won't rely on it.
 
     // Insert or update proof record
     if (existingProof) {

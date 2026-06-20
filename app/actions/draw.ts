@@ -22,6 +22,9 @@ export type DrawResult = {
     userScores: number[];
     amount: number;
   }[];
+  jackpotWinners?: any[];
+  silverWinners?: any[];
+  bronzeWinners?: any[];
 }
 
 // Helper to generate 5 unique numbers between 1 and 45
@@ -52,13 +55,17 @@ function generateWinningNumbers(mode: 'random' | 'algorithmic', userScoresMap?: 
     }
     
     while (nums.size < 5) {
-      const rIndex = Math.floor(Math.random() * weightedPool.length)
+      const array = new Uint32Array(1)
+      crypto.getRandomValues(array)
+      const rIndex = array[0] % weightedPool.length
       nums.add(weightedPool[rIndex])
     }
   } else {
     while (nums.size < 5) {
-      const r = Math.floor(Math.random() * 45) + 1
-      nums.add(r)
+      const array = new Uint8Array(1)
+      crypto.getRandomValues(array)
+      const num = (array[0] % 45) + 1
+      nums.add(num)
     }
   }
   
@@ -69,7 +76,7 @@ export async function simulateDraw(
   month: number, 
   year: number, 
   mode: 'random' | 'algorithmic'
-): Promise<DrawResult> {
+): Promise<DrawResult & { drawId?: string }> {
   await verifyAdmin()
   const supabase = await createClient()
   
@@ -94,8 +101,8 @@ export async function simulateDraw(
     }
   }
 
-  const poolAmount = calculatedPool > 0 ? calculatedPool : 50000
-  const charityContribution = calculatedPool > 0 ? calculatedCharity : 5000
+  const poolAmount = calculatedPool
+  const charityContribution = calculatedCharity
 
   // Fetch all scores for these users, then group by user and take latest 5
   // For performance in a real app, this should be a Supabase RPC or view.
@@ -106,14 +113,21 @@ export async function simulateDraw(
     .in('user_id', activeUserIds)
     .order('date', { ascending: false })
 
-  const userScoresMap = new Map<string, number[]>()
+  const tempMap = new Map<string, number[]>()
   if (allScores) {
     for (const s of allScores) {
-      const scores = userScoresMap.get(s.user_id) || []
+      const scores = tempMap.get(s.user_id) || []
       if (scores.length < 5) {
         scores.push(s.score)
-        userScoresMap.set(s.user_id, scores)
+        tempMap.set(s.user_id, scores)
       }
+    }
+  }
+
+  const userScoresMap = new Map<string, number[]>()
+  for (const [userId, scores] of Array.from(tempMap.entries())) {
+    if (scores.length === 5) {
+      userScoresMap.set(userId, scores)
     }
   }
 
@@ -176,95 +190,111 @@ export async function simulateDraw(
     if (w.tier === 'silver') w.amount = prize4Match / silverWinners.length
     if (w.tier === 'bronze') w.amount = prize3Match / bronzeWinners.length
   })
-
-  return {
-    winningNumbers,
-    totalPool: poolAmount,
-    jackpotAmount: hasJackpotWinner ? jackpotAmount : 0,
-    prize4Match,
-    prize3Match,
-    charityContribution,
-    rolloverAmount: hasJackpotWinner ? 0 : jackpotAmount, // if no winner, it rolls over
-    winners
-  }
-}
-
-export async function executeDraw(
-  month: number, 
-  year: number, 
-  mode: 'random' | 'algorithmic'
-) {
-  await verifyAdmin()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) throw new Error('Unauthorized')
-
-  // Run simulation first to get numbers and winners
-  const result = await simulateDraw(month, year, mode)
-
-  // Save to Database
-  const { data: draw, error: drawError } = await supabaseAdmin
+  // --- NEW: Persist Draft Draw to DB ---
+  // Delete existing in_progress for this month/year
+  await supabaseAdmin.from('draws').delete().match({ month, year, status: 'in_progress' })
+  
+  const { data: drawRecord } = await supabaseAdmin
     .from('draws')
     .insert({
       month,
       year,
       mode,
-      winning_numbers: result.winningNumbers,
-      total_pool: result.totalPool,
-      jackpot_amount: result.jackpotAmount || result.rolloverAmount, // Save total calculated jackpot
-      prize_4match: result.prize4Match,
-      prize_3match: result.prize3Match,
-      jackpot_rolled_over: result.rolloverAmount > 0,
-      rollover_amount: result.rolloverAmount,
-      charity_contribution: result.charityContribution,
-      status: 'pending', // Do not auto-publish
-      run_by: user.id,
-      run_at: new Date().toISOString()
+      winning_numbers: winningNumbers,
+      total_pool: poolAmount,
+      jackpot_amount: hasJackpotWinner ? jackpotAmount : rolloverAmount,
+      prize_4match: prize4Match,
+      prize_3match: prize3Match,
+      jackpot_rolled_over: rolloverAmount > 0,
+      rollover_amount: rolloverAmount,
+      charity_contribution: charityContribution,
+      status: 'in_progress', // acts as draft
     })
     .select()
     .single()
 
-  if (drawError) throw drawError
-
-  if (result.winners.length > 0) {
-    const winnersToInsert = result.winners.map(w => ({
-      draw_id: draw.id,
+  if (drawRecord && winners.length > 0) {
+    const winnersToInsert = winners.map(w => ({
+      draw_id: drawRecord.id,
       user_id: w.userId,
       tier: w.tier,
       match_count: w.matchCount,
       matched_numbers: w.matchedNumbers,
       user_scores: w.userScores,
       amount: w.amount,
-      paid_out: false
+      payout_status: 'pending'
     }))
-
     await supabaseAdmin.from('draw_winners').insert(winnersToInsert)
+  }
 
+  return {
+    drawId: drawRecord?.id,
+    winningNumbers,
+    totalPool: poolAmount,
+    jackpotAmount: hasJackpotWinner ? jackpotAmount : 0,
+    prize4Match,
+    prize3Match,
+    charityContribution,
+    rolloverAmount: hasJackpotWinner ? 0 : jackpotAmount,
+    winners,
+    jackpotWinners,
+    silverWinners,
+    bronzeWinners
+  }
+}
+
+export async function executeDraw(drawId: string) {
+  await verifyAdmin()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('Unauthorized')
+
+  // Find the draft draw
+  const { data: draw, error: drawError } = await supabaseAdmin
+    .from('draws')
+    .select('*')
+    .eq('id', drawId)
+    .single()
+
+  if (drawError || !draw || draw.status !== 'in_progress') {
+    throw new Error('Draft draw not found or already executed')
+  }
+
+  // Update status to pending (finalized)
+  await supabaseAdmin
+    .from('draws')
+    .update({ status: 'pending', run_by: user.id, run_at: new Date().toISOString() })
+    .eq('id', drawId)
+
+  // Fetch winners
+  const { data: dbWinners } = await supabaseAdmin.from('draw_winners').select('*').eq('draw_id', drawId)
+
+  if (dbWinners && dbWinners.length > 0) {
     // Notify winners
-    const notifications = result.winners.map(w => ({
-      user_id: w.userId,
+    const notifications = dbWinners.map(w => ({
+      user_id: w.user_id,
       title: 'Congratulations! You are a Hero.',
-      message: `You matched ${w.matchCount} numbers in the latest draw and won $${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}. Please submit your proof.`,
+      message: `You matched ${w.match_count} numbers in the latest draw and won ₹${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}. Please submit your proof.`,
       type: 'draw_result',
-      action_url: `/proofs/${draw.id}` // Ideally we'd map to the draw_winners row id, but keeping it simple
+      action_url: `/proofs/${draw.id}` 
     }))
     
     await supabaseAdmin.from('notifications').insert(notifications)
 
     // Notify winners via Email (Server-side)
-    for (const w of result.winners) {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)').eq('id', w.userId).single()
+    for (const w of dbWinners) {
+      const { data: profile } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)').eq('id', w.user_id).single()
       if (profile && profile.auth_users) {
         await sendEmail({
           to: (profile.auth_users as any).email || (profile.auth_users as any)?.[0]?.email,
           subject: 'You Won the Digital Heroes Draw!',
-          body: `Congratulations ${profile.name}, you matched ${w.matchCount} numbers and won $${w.amount}. Log in to claim your prize.`,
+          body: `Congratulations ${profile.name}, you matched ${w.match_count} numbers and won ₹${w.amount}. Log in to claim your prize.`,
           html: buildEmailTemplate(
             'You are a Winner! 🏆',
             `<p>Congratulations <strong>${profile.name}</strong>!</p>
-             <p>The algorithmic vault has spoken. You matched <strong>${w.matchCount} numbers</strong> in the latest Digital Heroes draw.</p>
-             <p>Your prize amount is <strong>$${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>.</p>
+             <p>The algorithmic vault has spoken. You matched <strong>${w.match_count} numbers</strong> in the latest Digital Heroes draw.</p>
+             <p>Your prize amount is <strong>₹${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>.</p>
              <p>To claim your prize, please log in to your dashboard and submit a screenshot of your winning scorecard for manual verification.</p>`,
             `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
             'Claim Your Prize'
