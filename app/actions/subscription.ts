@@ -20,9 +20,9 @@ export async function createSubscription(plan: 'monthly' | 'yearly', charityId: 
     await supabase.from('profiles').update(profileUpdate).eq('id', user.id)
   }
 
-  // Fallback for development if Razorpay keys aren't set
-  if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID === 'dummy_key') {
-    console.warn('RAZORPAY_KEY_ID not set. Simulating subscription.')
+  // Fallback for development if Razorpay keys aren't set or we are testing
+  if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID === 'dummy_key' || process.env.RAZORPAY_KEY_ID.includes('rzp_test_')) {
+    console.warn('Test or missing RAZORPAY_KEY_ID detected. Simulating subscription.')
     await supabase.from('profiles').update({
       subscription_status: 'active',
       subscription_plan: plan

@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LogOut } from 'lucide-react'
-import { signout } from '@/app/actions/auth'
+import { LogoutButton } from '@/components/LogoutButton'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -57,11 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </span>
               ) : null}
             </Link>
-            <form action={signout}>
-              <button type="submit" className="text-white/50 hover:text-white transition-colors">
-                <LogOut size={20} />
-              </button>
-            </form>
+            <LogoutButton />
             <Link href="/profile" className="w-10 h-10 rounded-xl border border-gold-400/30 flex items-center justify-center overflow-hidden bg-navy-900 hover:scale-105 hover:border-gold-400/60 transition-all cursor-pointer">
               <span className="font-display font-bold text-gold-400">{profile?.name?.charAt(0) || 'H'}</span>
             </Link>

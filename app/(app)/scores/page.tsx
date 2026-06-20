@@ -2,8 +2,16 @@ import { FadeIn, SlideUp, StaggerContainer, StaggerItem } from "@/components/ui/
 import Link from "next/link"
 import { getLatestScores } from "@/app/actions/scores"
 import { ScoreForm } from "./ScoreForm"
+import { createClient } from "@/lib/supabase/server"
+import { Button } from "@/components/ui/button"
 
 export default async function ScoresPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user?.id).single()
+
+  const isActive = profile?.subscription_status === 'active'
+
   const latestScores = await getLatestScores()
 
   return (
@@ -17,10 +25,26 @@ export default async function ScoresPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Side: Log Form */}
         <section className="lg:col-span-7">
-          <FadeIn delay={0.2} className="glass-card shadow-emerald-glow rounded-3xl p-8 md:p-12 relative overflow-hidden border border-emerald-400/20">
+          <FadeIn delay={0.2} className="glass-card shadow-emerald-glow rounded-3xl p-8 md:p-12 relative overflow-hidden border border-emerald-400/20 min-h-[400px] flex flex-col justify-center">
             {/* Subtle Interior Glow */}
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-gold-400/5 blur-[80px] rounded-full"></div>
-            <ScoreForm />
+            
+            {!isActive ? (
+              <div className="relative z-10 text-center flex flex-col items-center justify-center h-full">
+                <div className="w-16 h-16 bg-navy-900 border border-gold-400/30 rounded-2xl flex items-center justify-center text-gold-400 mb-6">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <h3 className="font-display text-2xl text-white font-bold mb-3">Subscription Required</h3>
+                <p className="text-white/60 font-body mb-8 max-w-sm">To submit operational metrics and participate in the draw, you must activate your Legend subscription.</p>
+                <Link href="/pricing" className="w-full sm:w-auto">
+                  <Button className="w-full h-12 bg-gold-gradient text-navy-950 font-body uppercase tracking-[0.2em] font-black border-none rounded-xl px-8 shadow-gold-glow">
+                    Unlock Access
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <ScoreForm />
+            )}
           </FadeIn>
         </section>
 

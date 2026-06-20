@@ -11,11 +11,13 @@ export function PricingPlans({ charities }: { charities: any[] }) {
   const [selectedCharity, setSelectedCharity] = useState<string>("")
   const [charityPercentage, setCharityPercentage] = useState<number>(10)
   const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   const handleSubscribe = async (plan: 'monthly' | 'yearly') => {
     try {
       setLoading(plan)
+      setError(null)
       const res = await createSubscription(plan, selectedCharity || null, charityPercentage)
       
       if (res.error) {
@@ -52,7 +54,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
       rzp.open()
     } catch (err: any) {
       console.error(err)
-      alert(err.message || 'Something went wrong')
+      setError(err.message || 'Something went wrong')
     } finally {
       setLoading(null)
     }
@@ -83,6 +85,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
           </div>
 
           <div className="mt-auto">
+            {error && <div className="text-red-400 text-xs mb-3 text-center">{error}</div>}
             <Button 
               onClick={() => handleSubscribe('monthly')} 
               disabled={loading !== null}
@@ -157,6 +160,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
             )}
 
             <div className="relative">
+              {error && <div className="text-red-400 text-xs mb-3 text-center relative z-20">{error}</div>}
               <div className="absolute -inset-1 bg-gold-400/30 blur-xl rounded-xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
               <Button 
                 onClick={() => handleSubscribe('yearly')} 
