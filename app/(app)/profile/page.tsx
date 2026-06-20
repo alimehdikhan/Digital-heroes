@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProfileForm } from './ProfileForm'
+import { LogoutButton } from '@/components/LogoutButton'
 
 export default async function ProfileSettingsPage() {
   const supabase = await createClient()
@@ -121,7 +122,9 @@ export default async function ProfileSettingsPage() {
 
       {/* Destructive Action */}
       <section id="security" className="scroll-mt-32">
-        <FadeIn delay={0.6} className="pt-12 border-t border-white/5">
+        <FadeIn delay={0.6} className="pt-12 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <LogoutButton variant="profile" />
+          <div className="w-full sm:w-px h-px sm:h-4 bg-white/10 hidden sm:block"></div>
           <button className="flex items-center gap-3 text-red-400/60 hover:text-red-400 transition-colors font-body text-xs uppercase tracking-widest font-bold">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Deactivate Digital Identity
