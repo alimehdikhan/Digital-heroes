@@ -146,9 +146,9 @@ export async function simulateDraw(
     .limit(1)
     .single()
 
-  const rolloverAmount = previousDraw?.jackpot_rolled_over ? previousDraw.rollover_amount : 0
+  const previousRollover = previousDraw?.jackpot_rolled_over ? previousDraw.rollover_amount : 0
   
-  const jackpotAmount = (netPool * 0.40) + rolloverAmount
+  const jackpotAmount = (netPool * 0.40) + previousRollover
   const prize4Match = netPool * 0.35
   const prize3Match = netPool * 0.25
 
@@ -195,6 +195,9 @@ export async function simulateDraw(
   // Delete existing in_progress for this month/year
   await supabaseAdmin.from('draws').delete().match({ month, year, status: 'in_progress' })
   
+  const isRollingOverToNext = !hasJackpotWinner
+  const amountToRollOverToNext = isRollingOverToNext ? jackpotAmount : 0
+
   const { data: drawRecord } = await supabaseAdmin
     .from('draws')
     .insert({
@@ -203,11 +206,11 @@ export async function simulateDraw(
       mode,
       winning_numbers: winningNumbers,
       total_pool: poolAmount,
-      jackpot_amount: hasJackpotWinner ? jackpotAmount : rolloverAmount,
+      jackpot_amount: jackpotAmount,
       prize_4match: prize4Match,
       prize_3match: prize3Match,
-      jackpot_rolled_over: rolloverAmount > 0,
-      rollover_amount: rolloverAmount,
+      jackpot_rolled_over: isRollingOverToNext,
+      rollover_amount: amountToRollOverToNext,
       charity_contribution: charityContribution,
       status: 'in_progress', // acts as draft
     })
@@ -232,11 +235,11 @@ export async function simulateDraw(
     drawId: drawRecord?.id,
     winningNumbers,
     totalPool: poolAmount,
-    jackpotAmount: hasJackpotWinner ? jackpotAmount : 0,
+    jackpotAmount: jackpotAmount,
     prize4Match,
     prize3Match,
     charityContribution,
-    rolloverAmount: hasJackpotWinner ? 0 : jackpotAmount,
+    rolloverAmount: amountToRollOverToNext,
     winners,
     jackpotWinners,
     silverWinners,
