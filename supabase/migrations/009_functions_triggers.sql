@@ -8,7 +8,7 @@
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, avatar_url, supported_charity_id)
+  INSERT INTO public.profiles (id, name, avatar_url, supported_charity_id, charity_percentage)
   VALUES (
     NEW.id,
     COALESCE(
@@ -17,7 +17,8 @@ BEGIN
       split_part(NEW.email, '@', 1)
     ),
     NEW.raw_user_meta_data->>'avatar_url',
-    (NEW.raw_user_meta_data->>'supported_charity_id')::UUID
+    (NEW.raw_user_meta_data->>'supported_charity_id')::UUID,
+    COALESCE((NEW.raw_user_meta_data->>'charity_percentage')::NUMERIC, 10.00)
   );
   RETURN NEW;
 END;

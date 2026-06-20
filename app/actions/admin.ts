@@ -3,6 +3,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
+import { getPlanPrice } from '@/lib/pricing'
 
 // Add a reusable admin verification function
 export async function verifyAdmin() {
@@ -234,7 +235,7 @@ export async function getAdminMetrics() {
   let calculatedPool = 0
   if (activeProfiles && activeProfiles.length > 0) {
     for (const p of activeProfiles) {
-      calculatedPool += p.subscription_plan === 'yearly' ? 16.66 : 20.00
+      calculatedPool += getPlanPrice(p.subscription_plan)
     }
   }
   const poolAmount = calculatedPool > 0 ? calculatedPool : 50000

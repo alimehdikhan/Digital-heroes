@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
 import { verifyAdmin } from '@/app/actions/admin'
+import { getPlanPrice } from '@/lib/pricing'
 
 export type DrawResult = {
   winningNumbers: number[];
@@ -94,7 +95,7 @@ export async function simulateDraw(
 
   if (activeProfiles && activeProfiles.length > 0) {
     for (const p of activeProfiles) {
-      const fee = p.subscription_plan === 'yearly' ? 16.66 : 20.00
+      const fee = getPlanPrice(p.subscription_plan)
       calculatedPool += fee
       const pct = p.charity_percentage || 10
       calculatedCharity += fee * (pct / 100)

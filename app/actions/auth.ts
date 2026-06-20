@@ -15,6 +15,7 @@ const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
   charity_id: z.string().optional().or(z.literal('')),
+  charity_percentage: z.number().min(10).max(100).optional(),
 })
 
 export type ActionState = {
@@ -57,8 +58,10 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
     const password = formData.get('password') as string
     const name = formData.get('name') as string
     const charity_id = formData.get('charity_id') as string
+    const charity_percentage_raw = formData.get('charity_percentage')
+    const charity_percentage = charity_percentage_raw ? parseInt(charity_percentage_raw as string, 10) : undefined
 
-    const validatedFields = registerSchema.safeParse({ email, password, name, charity_id })
+    const validatedFields = registerSchema.safeParse({ email, password, name, charity_id, charity_percentage })
 
     if (!validatedFields.success) {
       return {
@@ -72,6 +75,9 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
     const metaData: any = { full_name: name }
     if (charity_id) {
       metaData.supported_charity_id = charity_id
+    }
+    if (charity_percentage) {
+      metaData.charity_percentage = charity_percentage
     }
 
     // Supabase Auth Signup

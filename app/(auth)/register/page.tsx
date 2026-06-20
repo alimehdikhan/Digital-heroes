@@ -22,6 +22,7 @@ function SubmitButton() {
 export default function RegisterPage() {
   const [state, formAction] = useActionState(signup, initialState)
   const [charities, setCharities] = useState<any[]>([])
+  const [charityPercentage, setCharityPercentage] = useState(10)
 
   useEffect(() => {
     const fetchCharities = async () => {
@@ -123,6 +124,21 @@ export default function RegisterPage() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-2 group/input">
+            <div className="flex justify-between items-center ml-1">
+              <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold">Contribution (%)</label>
+              <span className="text-white text-xs font-bold">{charityPercentage}%</span>
+            </div>
+            <input 
+              type="range" 
+              name="charity_percentage"
+              min="10" max="100" 
+              value={charityPercentage} 
+              onChange={(e) => setCharityPercentage(parseInt(e.target.value))}
+              className="w-full accent-emerald-400"
+            />
           </div>
 
           <div className="flex items-start gap-3 mt-4">

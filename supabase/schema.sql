@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   subscription_plan TEXT CHECK (subscription_plan IN ('monthly', 'yearly')),
   stripe_customer_id TEXT UNIQUE,
   stripe_subscription_id TEXT UNIQUE,
+  org_id UUID,
+  supported_charity_id UUID,
+  charity_percentage NUMERIC(5,2) DEFAULT 10.00 CHECK (charity_percentage >= 10.00),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -22,10 +25,12 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO profiles (id, name)
+  INSERT INTO profiles (id, name, supported_charity_id, charity_percentage)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1))
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    (NEW.raw_user_meta_data->>'supported_charity_id')::UUID,
+    COALESCE((NEW.raw_user_meta_data->>'charity_percentage')::NUMERIC, 10.00)
   );
   RETURN NEW;
 END;
@@ -194,9 +199,12 @@ CREATE POLICY "Admins can update proof status"
 -- ============================================================
 -- STORAGE BUCKET (run separately or via Supabase dashboard)
 -- ============================================================
--- INSERT INTO storage.buckets (id, name, public) VALUES ('winner-proofs', 'winner-proofs', false);
--- CREATE POLICY "Users upload own proofs" ON storage.objects FOR INSERT
---   WITH CHECK (bucket_id = 'winner-proofs' AND auth.uid()::text = (storage.foldername(name))[1]);
--- CREATE POLICY "Admins view all proofs" ON storage.objects FOR SELECT
---   USING (bucket_id = 'winner-proofs' AND
---     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+INSERT INTO storage.buckets (id, name, public) VALUES ('winner-proofs', 'winner-proofs', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Users upload own proofs" ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'winner-proofs' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Admins view all proofs" ON storage.objects FOR SELECT
+  USING (bucket_id = 'winner-proofs' AND
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
