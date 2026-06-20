@@ -45,12 +45,22 @@ export default async function proxy(request: NextRequest) {
 
   // Redirect unauthenticated users away from protected routes
   if (!user && isAppRoute) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectUrl = new URL('/login', request.url)
+    const response = NextResponse.redirect(redirectUrl)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return response
   }
 
   // Redirect authenticated users away from auth routes
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const redirectUrl = new URL('/dashboard', request.url)
+    const response = NextResponse.redirect(redirectUrl)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return response
   }
 
   // Admin RBAC
@@ -63,7 +73,12 @@ export default async function proxy(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const redirectUrl = new URL('/dashboard', request.url)
+      const response = NextResponse.redirect(redirectUrl)
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        response.cookies.set(cookie.name, cookie.value, cookie)
+      })
+      return response
     }
   }
 
@@ -81,7 +96,12 @@ export default async function proxy(request: NextRequest) {
     const isGracePeriod = profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date()
 
     if (!profile || (!isActive && !isGracePeriod)) {
-      return NextResponse.redirect(new URL('/pricing', request.url))
+      const redirectUrl = new URL('/pricing', request.url)
+      const response = NextResponse.redirect(redirectUrl)
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        response.cookies.set(cookie.name, cookie.value, cookie)
+      })
+      return response
     }
   }
 

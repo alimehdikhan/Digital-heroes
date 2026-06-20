@@ -96,9 +96,11 @@ export async function simulateDraw(
   if (activeProfiles && activeProfiles.length > 0) {
     for (const p of activeProfiles) {
       const fee = getPlanPrice(p.subscription_plan)
-      calculatedPool += fee
+      const monthlyEquivalent = p.subscription_plan === 'yearly' ? fee / 12 : fee;
+      
+      calculatedPool += monthlyEquivalent
       const pct = p.charity_percentage || 10
-      calculatedCharity += fee * (pct / 100)
+      calculatedCharity += monthlyEquivalent * (pct / 100)
     }
   }
 
