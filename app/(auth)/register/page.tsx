@@ -62,12 +62,14 @@ export default function RegisterPage() {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 group/input">
-              <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">First Name</label>
+              <label htmlFor="name" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">First Name</label>
               <input 
                 className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
                 placeholder="Jane" 
                 type="text"
+                id="name"
                 name="name"
+                autoComplete="given-name"
                 required
               />
               {state.fieldErrors?.name && (
@@ -75,23 +77,28 @@ export default function RegisterPage() {
               )}
             </div>
             <div className="space-y-2 group/input">
-              <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Last Name</label>
+              <label htmlFor="last_name" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Last Name</label>
               <input 
                 className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
                 placeholder="Doe" 
                 type="text"
+                id="last_name"
+                name="last_name"
+                autoComplete="family-name"
                 required
               />
             </div>
           </div>
           
           <div className="space-y-2 group/input">
-            <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Email Address</label>
+            <label htmlFor="email" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Email Address</label>
             <input 
               className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
               placeholder="hero@digitalheroes.io" 
               type="email"
+              id="email"
               name="email"
+              autoComplete="email"
               required
             />
             {state.fieldErrors?.email && (
@@ -100,12 +107,14 @@ export default function RegisterPage() {
           </div>
           
           <div className="space-y-2 group/input">
-            <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Password</label>
+            <label htmlFor="password" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Password</label>
             <input 
               className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
               placeholder="••••••••" 
               type="password"
+              id="password"
               name="password"
+              autoComplete="new-password"
               required
             />
             {state.fieldErrors?.password && (

@@ -44,12 +44,14 @@ export default function LoginPage() {
             </div>
           )}
           <div className="space-y-2 group/input">
-            <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Email Address</label>
+            <label htmlFor="email" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Email Address</label>
             <input 
               className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-gold-400/50 focus:ring-1 focus:ring-gold-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
               placeholder="hero@digitalheroes.io" 
               type="email"
+              id="email"
               name="email"
+              autoComplete="email"
               required
             />
             {state.fieldErrors?.email && (
@@ -58,7 +60,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2 group/input">
             <div className="flex justify-between items-center px-1">
-              <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold">Password</label>
+              <label htmlFor="password" className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold">Password</label>
               <Link href="/forgot-password" className="font-body text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors uppercase tracking-widest font-bold">
                 Forgot?
               </Link>
@@ -67,7 +69,9 @@ export default function LoginPage() {
               className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-gold-400/50 focus:ring-1 focus:ring-gold-400/20 transition-all placeholder:text-white/20 group-focus-within/input:scale-[1.01]" 
               placeholder="••••••••" 
               type="password"
+              id="password"
               name="password"
+              autoComplete="current-password"
               required
             />
             {state.fieldErrors?.password && (
