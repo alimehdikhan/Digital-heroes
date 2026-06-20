@@ -43,8 +43,16 @@ If you are setting up a fresh Supabase project:
    - `008_roles_rls.sql`
    - `009_rpc_functions.sql`
    - `010_notifications.sql`
+   
+### 4. Seeding Initial Data
+For the platform to function correctly during local testing (specifically the registration and charities directory), you must ensure there is at least one active charity in the database. 
+You can use the provided Supabase CLI or SQL editor to run a seed script, or manually insert an active charity:
+```sql
+INSERT INTO charities (name, description, is_active, total_contributed) 
+VALUES ('Test Charity', 'A default charity for testing', TRUE, 0);
+```
 
-### 4. Running the Development Server
+### 5. Running the Development Server
 ```bash
 npm run dev
 ```
@@ -58,6 +66,9 @@ To access the Admin Command Center:
 3. Locate your newly created user.
 4. Change the `role` column from `user` to `admin`.
 5. Refresh the application. You will now see the **Admin Console** tab in the navigation bar.
+
+## 🧪 Local QA & Testing
+- **Subscriptions**: If `RAZORPAY_KEY_ID` is omitted or contains a Razorpay test prefix (e.g. `rzp_test_`), the application will automatically intercept the payment gateway and simulate a successful subscription. This unblocks local QA testing of the Score Management systems for standard users.
 
 ## 🏗️ Deployment to Vercel
 
