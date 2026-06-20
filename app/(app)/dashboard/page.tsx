@@ -86,17 +86,17 @@ export default async function DashboardPage() {
           <h2 className="font-body text-xs text-gold-400 font-bold tracking-[0.2em] mb-6 uppercase">NEXT DRAW COUNTDOWN</h2>
           <div className="flex justify-center gap-4 md:gap-8 items-center mb-8">
             <div className="flex flex-col items-center">
-              <span className="font-display text-5xl md:text-7xl text-white font-bold drop-shadow-lg">{String(daysLeft).padStart(2, '0')}</span>
+              <span className="font-display text-4xl md:text-7xl text-white font-bold drop-shadow-lg">{String(daysLeft).padStart(2, '0')}</span>
               <span className="font-body text-[10px] text-white/50 font-bold tracking-widest mt-2 uppercase">DAYS</span>
             </div>
-            <span className="font-display text-5xl md:text-7xl text-gold-400/30 mb-6">:</span>
+            <span className="font-display text-4xl md:text-7xl text-gold-400/30 mb-6">:</span>
             <div className="flex flex-col items-center">
-              <span className="font-display text-5xl md:text-7xl text-white font-bold drop-shadow-lg">{String(hoursLeft).padStart(2, '0')}</span>
+              <span className="font-display text-4xl md:text-7xl text-white font-bold drop-shadow-lg">{String(hoursLeft).padStart(2, '0')}</span>
               <span className="font-body text-[10px] text-white/50 font-bold tracking-widest mt-2 uppercase">HOURS</span>
             </div>
-            <span className="font-display text-5xl md:text-7xl text-gold-400/30 mb-6">:</span>
+            <span className="font-display text-4xl md:text-7xl text-gold-400/30 mb-6">:</span>
             <div className="flex flex-col items-center">
-              <span className="font-display text-5xl md:text-7xl text-white font-bold drop-shadow-lg">{String(minsLeft).padStart(2, '0')}</span>
+              <span className="font-display text-4xl md:text-7xl text-white font-bold drop-shadow-lg">{String(minsLeft).padStart(2, '0')}</span>
               <span className="font-body text-[10px] text-white/50 font-bold tracking-widest mt-2 uppercase">MINS</span>
             </div>
           </div>
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
         <StaggerItem className="glass-card rounded-[24px] p-8 flex flex-col justify-center items-center text-center min-h-[240px] border-emerald-400/20">
           <h3 className="font-body text-xs text-white/50 font-bold uppercase tracking-[0.2em] mb-2">CURRENT JACKPOT</h3>
           <div className="relative">
-            <span className="font-display text-5xl md:text-6xl text-emerald-400 font-bold tracking-tight block drop-shadow-md">
+            <span className="font-display text-4xl md:text-6xl text-emerald-400 font-bold tracking-tight block drop-shadow-md">
               ${currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
             <div className="absolute -inset-2 bg-emerald-400/10 blur-xl rounded-full -z-10"></div>

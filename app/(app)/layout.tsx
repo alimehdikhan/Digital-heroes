@@ -45,27 +45,34 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <a href="/console" className="font-body text-xs uppercase tracking-widest font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Admin Console</a>
             )}
           </nav>
-          
-          <div className="flex items-center gap-4">
-            <Link href="/notifications" className="relative text-white/50 hover:text-gold-400 transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-              {unreadCount && unreadCount > 0 ? (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                </span>
-              ) : null}
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
+            <Link href="/console" className="md:hidden text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center bg-emerald-400/10 rounded-lg p-2 border border-emerald-400/30">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </Link>
-            <LogoutButton />
-            <Link href="/profile" className="w-10 h-10 rounded-xl border border-gold-400/30 flex items-center justify-center overflow-hidden bg-navy-900 hover:scale-105 hover:border-gold-400/60 transition-all cursor-pointer">
-              <span className="font-display font-bold text-gold-400">{profile?.name?.charAt(0) || 'H'}</span>
-            </Link>
+          )}
+          <Link href="/notifications" className="relative text-white/50 hover:text-gold-400 transition-colors bg-white/5 rounded-lg p-2 border border-white/10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            {unreadCount && unreadCount > 0 ? (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+            ) : null}
+          </Link>
+          <div className="bg-white/5 rounded-lg p-2 border border-white/10 flex items-center justify-center text-white/50 hover:text-red-400 transition-colors">
+            <LogoutButton variant="desktop" />
           </div>
+          <Link href="/profile" className="hidden md:flex w-10 h-10 rounded-xl border border-gold-400/30 items-center justify-center overflow-hidden bg-navy-900 hover:scale-105 hover:border-gold-400/60 transition-all cursor-pointer">
+            <span className="font-display font-bold text-gold-400">{profile?.name?.charAt(0) || 'H'}</span>
+          </Link>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="relative z-10 pt-32 pb-32 px-4 md:px-8 lg:px-12 max-w-7xl mx-auto w-full flex-1">
+      <main className="relative z-10 pt-24 pb-24 md:pt-32 md:pb-32 px-4 md:px-8 lg:px-12 max-w-7xl mx-auto w-full flex-1">
         {children}
       </main>
 
@@ -87,7 +94,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span className="font-body text-[10px] mt-1 font-bold uppercase tracking-wider">Hero</span>
         </Link>
-        <LogoutButton variant="mobile" />
       </nav>
     </div>
   )
