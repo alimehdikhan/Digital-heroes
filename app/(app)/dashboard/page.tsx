@@ -253,6 +253,16 @@ export default async function DashboardPage() {
                   </div>
                 </StaggerItem>
               )}
+              {/* Show approved status if proof is verified but payout is pending */}
+              {win.payout_status === 'pending' && win.winner_proofs?.[0]?.status === 'approved' && (
+                <StaggerItem className="p-4 bg-gold-400/10 border border-gold-400/30 rounded-xl flex items-center gap-3">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gold-400 shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+                  <div>
+                    <p className="text-gold-400 font-bold font-display">Proof Verified</p>
+                    <p className="text-gold-400/70 text-xs font-body mt-1">Your payout is currently being processed.</p>
+                  </div>
+                </StaggerItem>
+              )}
             </div>
           ))}
         </StaggerContainer>

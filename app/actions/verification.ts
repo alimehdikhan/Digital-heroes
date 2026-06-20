@@ -36,15 +36,17 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     return { error: 'Invalid winner record' }
   }
 
-  // Guard against multiple submissions
-  const { data: existingProof } = await supabase
+  // Guard against multiple active submissions
+  const { data: existingProofs } = await supabase
     .from('winner_proofs')
-    .select('id')
+    .select('id, status')
     .eq('draw_winner_id', winnerId)
-    .single()
+    .order('created_at', { ascending: false })
     
-  if (existingProof) {
-    return { error: 'Proof has already been submitted for this win.' }
+  const latestProof = existingProofs && existingProofs.length > 0 ? existingProofs[0] : null;
+
+  if (latestProof && latestProof.status !== 'rejected') {
+    return { error: 'Proof has already been submitted and is currently pending or verified.' }
   }
 
   // Upload to Supabase Storage
@@ -52,7 +54,6 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
   const fileName = `${uuidv4()}.${fileExt}`
   const filePath = `${user.id}/${winner.draw_id}/${fileName}`
 
-  // Ensure the bucket exists (this should be handled in DB migrations usually)
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('winner_proofs')
     .upload(filePath, file)
@@ -66,22 +67,37 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     .from('winner_proofs')
     .getPublicUrl(filePath)
 
-  const { error: insertError } = await supabase
-    .from('winner_proofs')
-    .insert({
-      draw_winner_id: winnerId,
-      user_id: user.id,
-      draw_id: winner.draw_id,
-      proof_url: publicUrlData.publicUrl,
-      storage_path: filePath,
-      file_name: file.name,
-      file_size: file.size,
-      mime_type: file.type,
-      status: 'pending'
-    })
+  const payload = {
+    draw_winner_id: winnerId,
+    user_id: user.id,
+    draw_id: winner.draw_id,
+    proof_url: publicUrlData.publicUrl,
+    storage_path: filePath,
+    file_name: file.name,
+    file_size: file.size,
+    mime_type: file.type,
+    status: 'pending'
+  }
 
-  if (insertError) {
-    return { error: insertError.message }
+  let dbError;
+  
+  if (latestProof) {
+    // Update existing rejected proof
+    const { error } = await supabase
+      .from('winner_proofs')
+      .update({ ...payload, reviewed_by: null, admin_note: null, reviewed_at: null })
+      .eq('id', latestProof.id)
+    dbError = error;
+  } else {
+    // Insert new proof
+    const { error } = await supabase
+      .from('winner_proofs')
+      .insert(payload)
+    dbError = error;
+  }
+
+  if (dbError) {
+    return { error: dbError.message }
   }
 
   revalidatePath('/dashboard')
