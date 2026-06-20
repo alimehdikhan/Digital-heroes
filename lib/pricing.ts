@@ -1,9 +1,9 @@
 export const PRICING_PLANS = {
   monthly: {
-    price: 20.00,
+    price: 1999,
   },
   yearly: {
-    price: 16.66, // monthly equivalent
+    price: 19999,
   }
 }
 
