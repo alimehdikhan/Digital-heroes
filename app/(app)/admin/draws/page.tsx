@@ -2,6 +2,7 @@ import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/compo
 import { DrawExecuteButton } from "./DrawExecuteButton"
 import { DrawCountdown } from "./DrawCountdown"
 import { ProofVerificationTable } from "./ProofVerificationTable"
+import { PublishDrawButton } from "./PublishDrawButton"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 
 export default async function AdminDrawsPage() {
@@ -11,6 +12,12 @@ export default async function AdminDrawsPage() {
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
     .limit(10)
+
+  const { data: pendingDraws } = await supabaseAdmin
+    .from('draws')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
 
   const pastDraws = dbDraws?.map(d => ({
     date: new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
@@ -99,6 +106,27 @@ export default async function AdminDrawsPage() {
           <ProofVerificationTable proofs={pendingProofs || []} />
         </StaggerContainer>
       </section>
+
+      {/* Pending Draws (Waiting for Publish) */}
+      {pendingDraws && pendingDraws.length > 0 && (
+        <section className="space-y-6 pt-8">
+          <FadeIn className="space-y-2">
+            <h3 className="font-display text-3xl md:text-4xl text-white font-bold">Unpublished Results</h3>
+            <p className="text-white/50 font-body text-sm">These draws have been executed but results are hidden from users. Publish to notify everyone.</p>
+          </FadeIn>
+          <div className="space-y-4">
+            {pendingDraws.map((draw) => (
+              <div key={draw.id} className="glass-card p-6 rounded-2xl flex items-center justify-between border border-gold-400/30 bg-gold-400/5">
+                <div>
+                  <h4 className="text-white font-bold font-display text-xl">{draw.month}/{draw.year} Draw</h4>
+                  <p className="text-gold-400 text-xs font-body font-bold mt-1">Status: Pending Verification & Publish</p>
+                </div>
+                <PublishDrawButton drawId={draw.id} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent Draw Ledger */}
       <section className="space-y-8 pt-8">
