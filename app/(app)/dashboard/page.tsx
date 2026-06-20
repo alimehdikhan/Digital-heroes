@@ -63,10 +63,13 @@ export default async function DashboardPage() {
   const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
   const hoursLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))
 
-  // Draws entered
-  // We can approximate "draws entered" by seeing if they were an active participant in draws.
-  // Actually, wait, do we have a draw_participants table? No, participants are dynamic from scores/subs.
-  // Let's just list the upcoming draw date based on endOfMonth.
+  // Approximate Draws entered: Count of completed draws since the user's account was created
+  const { count: drawsEntered } = await supabaseAdmin
+    .from('draws')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'completed')
+    .gte('created_at', profile?.created_at || new Date(0).toISOString())
+
   const upcomingDrawDate = endOfMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const minsLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)))
 
@@ -132,6 +135,10 @@ export default async function DashboardPage() {
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/70 font-body">Total Winnings</span>
               <span className="text-white font-bold font-display text-lg">${totalWinnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/70 font-body">Draws Entered</span>
+              <span className="text-white font-bold font-display text-lg">{drawsEntered || 0}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/70 font-body">Active Scores</span>
