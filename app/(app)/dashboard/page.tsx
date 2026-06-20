@@ -163,6 +163,37 @@ export default async function DashboardPage() {
         </StaggerItem>
       </StaggerContainer>
 
+      {/* Prize Pool Breakdown */}
+      <section className="space-y-6 pt-6">
+        <FadeIn>
+          <h2 className="font-display text-3xl text-white font-bold">Prize Pool Structure</h2>
+          <p className="text-white/60 font-body text-sm mt-2">How the monthly algorithmic draw distributes the rewards.</p>
+        </FadeIn>
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StaggerItem className="glass-card rounded-[24px] p-6 border-emerald-400/20 text-center relative overflow-hidden group hover:border-emerald-400/40 transition-colors">
+            <div className="absolute inset-0 bg-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h4 className="font-body text-xs text-white/50 font-bold uppercase tracking-[0.2em] mb-4">5-Number Match</h4>
+            <div className="font-display text-4xl text-emerald-400 font-bold mb-2">40%</div>
+            <p className="text-white/80 font-body text-sm font-medium">The Ultimate Jackpot</p>
+            <p className="text-white/40 font-body text-xs mt-2 italic">Rolls over to next month if unclaimed</p>
+          </StaggerItem>
+          <StaggerItem className="glass-card rounded-[24px] p-6 border-gold-400/20 text-center relative overflow-hidden group hover:border-gold-400/40 transition-colors">
+            <div className="absolute inset-0 bg-gold-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h4 className="font-body text-xs text-white/50 font-bold uppercase tracking-[0.2em] mb-4">4-Number Match</h4>
+            <div className="font-display text-4xl text-gold-400 font-bold mb-2">35%</div>
+            <p className="text-white/80 font-body text-sm font-medium">Legend Tier</p>
+            <p className="text-white/40 font-body text-xs mt-2 italic">Distributed evenly among winners</p>
+          </StaggerItem>
+          <StaggerItem className="glass-card rounded-[24px] p-6 border-white/10 text-center relative overflow-hidden group hover:border-white/20 transition-colors">
+            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h4 className="font-body text-xs text-white/50 font-bold uppercase tracking-[0.2em] mb-4">3-Number Match</h4>
+            <div className="font-display text-4xl text-white font-bold mb-2">25%</div>
+            <p className="text-white/80 font-body text-sm font-medium">Hero Tier</p>
+            <p className="text-white/40 font-body text-xs mt-2 italic">Distributed evenly among winners</p>
+          </StaggerItem>
+        </StaggerContainer>
+      </section>
+
       {/* Recent Activity: Stableford Scores */}
       <section className="space-y-6 pt-6">
         <FadeIn className="flex items-center justify-between">
