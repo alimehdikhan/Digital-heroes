@@ -33,7 +33,6 @@ function generateWinningNumbers(mode: 'random' | 'algorithmic', userScoresMap?: 
   const nums = new Set<number>()
   
   if (mode === 'algorithmic' && userScoresMap && userScoresMap.size > 0) {
-    // Calculate frequency of each number chosen by users
     const frequencies = new Map<number, number>()
     for (let i = 1; i <= 45; i++) frequencies.set(i, 0)
     
@@ -43,12 +42,10 @@ function generateWinningNumbers(mode: 'random' | 'algorithmic', userScoresMap?: 
       }
     }
     
-    // Sort numbers by least frequency to reward uncommon choices (algorithmic edge)
     const weightedPool: number[] = []
     const maxFreq = Math.max(...Array.from(frequencies.values()))
     
     for (const [num, freq] of Array.from(frequencies.entries())) {
-      // Inverse weighting: (maxFreq - freq + 1) tickets in the pool
       const weight = (maxFreq - freq) + 1
       for (let i = 0; i < weight; i++) {
         weightedPool.push(num)
@@ -79,25 +76,38 @@ export async function simulateDraw(
   mode: 'random' | 'algorithmic'
 ): Promise<DrawResult & { drawId?: string }> {
   await verifyAdmin()
-  const supabase = await createClient()
   
-  // Get active users and their latest 5 scores
-  const { data: activeProfiles } = await supabaseAdmin
-    .from('profiles')
-    .select('id, subscription_status, subscription_plan, charity_percentage')
-    .in('subscription_status', ['active', 'trialing'])
+  // ADVERSARIAL FIX: Pagination to bypass 1,000 row API limit
+  const activeProfiles: any[] = []
+  let hasMore = true
+  let page = 0
+  const limit = 1000
 
-  const activeUserIds = activeProfiles?.map(p => p.id) || []
+  while (hasMore) {
+    const { data } = await supabaseAdmin
+      .from('profiles')
+      .select('id, subscription_status, subscription_plan, charity_percentage')
+      .in('subscription_status', ['active', 'trialing'])
+      .range(page * limit, (page + 1) * limit - 1)
 
-  // Auto-calculate pool amount and accurate charity contribution
+    if (data && data.length > 0) {
+      activeProfiles.push(...data)
+      if (data.length < limit) hasMore = false;
+      else page++;
+    } else {
+      hasMore = false
+    }
+  }
+
+  const activeUserIds = activeProfiles.map(p => p.id)
+
   let calculatedPool = 0
   let calculatedCharity = 0
 
-  if (activeProfiles && activeProfiles.length > 0) {
+  if (activeProfiles.length > 0) {
     for (const p of activeProfiles) {
       const fee = getPlanPrice(p.subscription_plan)
       const monthlyEquivalent = p.subscription_plan === 'yearly' ? fee / 12 : fee;
-      
       calculatedPool += monthlyEquivalent
       const pct = p.charity_percentage || 10
       calculatedCharity += monthlyEquivalent * (pct / 100)
@@ -107,23 +117,26 @@ export async function simulateDraw(
   const poolAmount = calculatedPool
   const charityContribution = calculatedCharity
 
-  // Fetch all scores for these users, then group by user and take latest 5
-  // For performance in a real app, this should be a Supabase RPC or view.
-  // We'll do a simplified approach here.
-  const { data: allScores } = await supabaseAdmin
-    .from('scores')
-    .select('user_id, score, date')
-    .in('user_id', activeUserIds)
-    .order('date', { ascending: false })
+  // ADVERSARIAL FIX: Chunk activeUserIds to avoid Postgres/REST parameter limits
+  const allScores: any[] = []
+  const chunkSize = 500
+  for (let i = 0; i < activeUserIds.length; i += chunkSize) {
+    const chunk = activeUserIds.slice(i, i + chunkSize)
+    const { data } = await supabaseAdmin
+      .from('scores')
+      .select('user_id, score, date')
+      .in('user_id', chunk)
+      .order('date', { ascending: false })
+      
+    if (data) allScores.push(...data)
+  }
 
   const tempMap = new Map<string, number[]>()
-  if (allScores) {
-    for (const s of allScores) {
-      const scores = tempMap.get(s.user_id) || []
-      if (scores.length < 5) {
-        scores.push(s.score)
-        tempMap.set(s.user_id, scores)
-      }
+  for (const s of allScores) {
+    const scores = tempMap.get(s.user_id) || []
+    if (scores.length < 5) {
+      scores.push(s.score)
+      tempMap.set(s.user_id, scores)
     }
   }
 
@@ -135,11 +148,8 @@ export async function simulateDraw(
   }
 
   const winningNumbers = generateWinningNumbers(mode, userScoresMap)
-  
-  // Financials
   const netPool = poolAmount - charityContribution
   
-  // Check for previous rollover
   const { data: previousDraw } = await supabaseAdmin
     .from('draws')
     .select('jackpot_rolled_over, rollover_amount')
@@ -155,8 +165,6 @@ export async function simulateDraw(
   const prize3Match = netPool * 0.25
 
   const winners: DrawResult['winners'] = []
-
-  // Determine winners
   let hasJackpotWinner = false
   
   for (const [userId, scores] of Array.from(userScoresMap.entries())) {
@@ -178,12 +186,11 @@ export async function simulateDraw(
         matchCount,
         matchedNumbers,
         userScores: scores,
-        amount: 0 // Will divide later
+        amount: 0
       })
     }
   }
 
-  // Divide prizes
   const jackpotWinners = winners.filter(w => w.tier === 'jackpot')
   const silverWinners = winners.filter(w => w.tier === 'silver')
   const bronzeWinners = winners.filter(w => w.tier === 'bronze')
@@ -193,19 +200,17 @@ export async function simulateDraw(
     if (w.tier === 'silver') w.amount = prize4Match / silverWinners.length
     if (w.tier === 'bronze') w.amount = prize3Match / bronzeWinners.length
   })
-  // --- NEW: Persist Draft Draw to DB ---
-  // Delete existing in_progress for this month/year
+
+  // ADVERSARIAL FIX: Simulated Transactional Rollback
   await supabaseAdmin.from('draws').delete().match({ month, year, status: 'in_progress' })
   
   const isRollingOverToNext = !hasJackpotWinner
   const amountToRollOverToNext = isRollingOverToNext ? jackpotAmount : 0
 
-  const { data: drawRecord } = await supabaseAdmin
+  const { data: drawRecord, error: drawInsertError } = await supabaseAdmin
     .from('draws')
     .insert({
-      month,
-      year,
-      mode,
+      month, year, mode,
       winning_numbers: winningNumbers,
       total_pool: poolAmount,
       jackpot_amount: jackpotAmount,
@@ -214,12 +219,16 @@ export async function simulateDraw(
       jackpot_rolled_over: isRollingOverToNext,
       rollover_amount: amountToRollOverToNext,
       charity_contribution: charityContribution,
-      status: 'in_progress', // acts as draft
+      status: 'in_progress',
     })
     .select()
     .single()
 
-  if (drawRecord && winners.length > 0) {
+  if (drawInsertError || !drawRecord) {
+    throw new Error('Critical DB Error: Failed to generate draw record.')
+  }
+
+  if (winners.length > 0) {
     const winnersToInsert = winners.map(w => ({
       draw_id: drawRecord.id,
       user_id: w.userId,
@@ -230,11 +239,21 @@ export async function simulateDraw(
       amount: w.amount,
       payout_status: 'pending'
     }))
-    await supabaseAdmin.from('draw_winners').insert(winnersToInsert)
+    
+    // Batch inserts for safety against payload limits
+    for (let i = 0; i < winnersToInsert.length; i += chunkSize) {
+      const chunk = winnersToInsert.slice(i, i + chunkSize)
+      const { error: winErr } = await supabaseAdmin.from('draw_winners').insert(chunk)
+      if (winErr) {
+        // Rollback explicitly to prevent corrupted draw states
+        await supabaseAdmin.from('draws').delete().eq('id', drawRecord.id)
+        throw new Error('Critical DB Error: Winners insert failed. Draw aborted safely.')
+      }
+    }
   }
 
   return {
-    drawId: drawRecord?.id,
+    drawId: drawRecord.id,
     winningNumbers,
     totalPool: poolAmount,
     jackpotAmount: jackpotAmount,
@@ -256,7 +275,6 @@ export async function executeDraw(drawId: string) {
 
   if (!user) throw new Error('Unauthorized')
 
-  // Find the draft draw
   const { data: draw, error: drawError } = await supabaseAdmin
     .from('draws')
     .select('*')
@@ -267,17 +285,15 @@ export async function executeDraw(drawId: string) {
     throw new Error('Draft draw not found or already executed')
   }
 
-  // Update status to pending (finalized)
   await supabaseAdmin
     .from('draws')
     .update({ status: 'pending', run_by: user.id, run_at: new Date().toISOString() })
     .eq('id', drawId)
 
-  // Fetch winners
+  // ADVERSARIAL FIX: Safely notify without exploding payload loops
   const { data: dbWinners } = await supabaseAdmin.from('draw_winners').select('*').eq('draw_id', drawId)
 
   if (dbWinners && dbWinners.length > 0) {
-    // Notify winners
     const notifications = dbWinners.map(w => ({
       user_id: w.user_id,
       title: 'Congratulations! You are a Hero.',
@@ -286,9 +302,11 @@ export async function executeDraw(drawId: string) {
       action_url: `/proofs/${draw.id}` 
     }))
     
-    await supabaseAdmin.from('notifications').insert(notifications)
+    const chunkSize = 500
+    for (let i = 0; i < notifications.length; i += chunkSize) {
+      await supabaseAdmin.from('notifications').insert(notifications.slice(i, i + chunkSize))
+    }
 
-    // Notify winners via Email (Server-side)
     for (const w of dbWinners) {
       const { data: profile } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)').eq('id', w.user_id).single()
       if (profile && profile.auth_users) {
