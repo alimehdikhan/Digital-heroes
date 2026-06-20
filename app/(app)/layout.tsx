@@ -30,10 +30,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Top App Bar */}
       <header className="fixed top-0 w-full z-40 bg-navy-950/50 backdrop-blur-[20px] border-b border-white/10 shadow-emerald-glow h-20 px-4 md:px-8 lg:px-12 flex justify-between items-center transition-all">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gold-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <Link href="/dashboard" className="font-display text-2xl text-gold-400 tracking-tight font-bold">The Arena</Link>
-        </div>
+          <span className="font-display text-2xl text-gold-400 tracking-tight font-bold">The Arena</span>
+        </Link>
         
         <div className="hidden md:flex items-center gap-8">
           <nav className="flex gap-6">
