@@ -87,6 +87,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span className="font-body text-[10px] mt-1 font-bold uppercase tracking-wider">Hero</span>
         </Link>
+        <LogoutButton variant="mobile" />
       </nav>
     </div>
   )

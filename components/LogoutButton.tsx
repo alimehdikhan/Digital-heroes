@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export function LogoutButton() {
+export function LogoutButton({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
@@ -21,6 +21,19 @@ export function LogoutButton() {
     } finally {
       setIsLoggingOut(false)
     }
+  }
+
+  if (variant === 'mobile') {
+    return (
+      <button 
+        onClick={handleLogout} 
+        disabled={isLoggingOut}
+        className="flex flex-col items-center justify-center text-white/50 hover:bg-white/5 rounded-xl p-2 px-4 active:scale-95 transition-all disabled:opacity-50"
+      >
+        <LogOut size={24} />
+        <span className="font-body text-[10px] mt-1 font-bold uppercase tracking-wider">Logout</span>
+      </button>
+    )
   }
 
   return (
