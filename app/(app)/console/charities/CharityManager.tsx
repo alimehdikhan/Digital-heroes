@@ -83,7 +83,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
           <h3 className="font-display text-3xl md:text-4xl text-white font-bold">Initiatives Ledger</h3>
         </FadeIn>
         
-        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-32 md:pb-8">
           {charities.map((charity, i) => (
             <StaggerItem key={charity.id}>
               <CharityItem charity={charity} onSetActive={handleSetActive} />
@@ -158,16 +158,19 @@ function CharityItem({ charity, onSetActive }: { charity: any, onSetActive: (id:
 
   return (
     <div className={`glass-card rounded-2xl overflow-hidden flex flex-col h-full group transition-all border ${charity.is_active ? 'border-emerald-400/50 shadow-emerald-glow' : 'border-white/5 hover:border-emerald-400/30'}`}>
-      <div className="h-24 overflow-hidden relative bg-navy-900 border-b border-white/5 flex items-center justify-center">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/10">
-          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-        </svg>
-        <div className="absolute top-4 right-4 bg-navy-950/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+      <div className="h-40 overflow-hidden relative border-b border-white/5">
+        <img 
+          src={charity.hero_image_url || (charity.name.toLowerCase().includes('cancer') ? 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?q=80&w=2070' : charity.name.toLowerCase().includes('golf') ? 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070' : charity.name.toLowerCase().includes('children') ? 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2064' : 'https://images.unsplash.com/photo-1593113565214-80afcb4a4771?q=80&w=2069')} 
+          alt={charity.name} 
+          className="w-full h-full object-cover" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-navy-950 via-navy-950/20 to-transparent"></div>
+        <div className="absolute top-4 right-4 bg-navy-950/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 z-10">
           <span className={`text-[10px] font-bold tracking-widest uppercase ${charity.is_active ? 'text-emerald-400' : 'text-white/40'}`}>
             {charity.is_active ? 'Active Target' : 'Inactive'}
           </span>
         </div>
-        <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           <button onClick={() => setIsEditing(true)} className="p-1.5 bg-navy-950/80 rounded-md border border-white/10 text-white/50 hover:text-gold-400 hover:border-gold-400 transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </button>

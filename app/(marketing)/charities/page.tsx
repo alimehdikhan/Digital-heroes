@@ -64,7 +64,13 @@ export default async function CharitiesPage({ searchParams }: { searchParams: Pr
             <StaggerItem key={charity.id} className="glass-card rounded-[24px] overflow-hidden group border border-white/5 hover:border-white/10 transition-colors">
               {/* Header */}
               <div className="h-40 relative overflow-hidden bg-navy-900 border-b border-white/10">
-                <div className={`absolute inset-0 bg-gradient-to-br opacity-20 group-hover:opacity-40 transition-opacity duration-700 ${idx % 2 === 0 ? 'from-emerald-400 to-transparent' : 'from-gold-400 to-transparent'}`}></div>
+                <img 
+                  src={charity.hero_image_url || (charity.name.toLowerCase().includes('cancer') ? 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?q=80&w=2070' : charity.name.toLowerCase().includes('golf') ? 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070' : charity.name.toLowerCase().includes('children') ? 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2064' : 'https://images.unsplash.com/photo-1593113565214-80afcb4a4771?q=80&w=2069')} 
+                  alt={charity.name} 
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy-950 via-navy-950/40 to-transparent"></div>
+                <div className={`absolute inset-0 bg-gradient-to-br opacity-40 mix-blend-color transition-opacity duration-700 ${idx % 2 === 0 ? 'from-emerald-400 to-transparent group-hover:opacity-60' : 'from-gold-400 to-transparent group-hover:opacity-60'}`}></div>
                 <div className={`absolute bottom-0 left-8 translate-y-1/2 w-16 h-16 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-md z-10 ${idx % 2 === 0 ? 'bg-emerald-400/20 text-emerald-400' : 'bg-gold-400/20 text-gold-400'}`}>
                   {charity.is_active ? (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
