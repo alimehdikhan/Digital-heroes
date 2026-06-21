@@ -190,7 +190,7 @@ export async function markWinnerPaid(winnerId: string) {
     try {
       const { data: authData } = await supabaseAdmin.auth.admin.getUserById(winner.user_id)
       const email = authData.user?.email
-      const name = (winner.profiles as Record<string, unknown>)?.name || 'Hero'
+      const name = (winner.profiles as any)?.name || 'Hero'
       const amount = Number(winner.amount || 0)
 
       if (email) {

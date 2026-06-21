@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect, headers } from 'next/navigation'
+import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 
 const navLinks = [
@@ -32,7 +33,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   // Read current pathname from headers to determine active nav link
-  const pathname = headers().get('x-next-url') || headers().get('referer') || ''
+  const headersList = await headers()
+  const pathname = headersList.get('x-next-url') || headersList.get('referer') || ''
   const currentPath = pathname.replace(/^https?:\/\/[^/]+/, '') || '/admin'
 
   return (

@@ -163,4 +163,22 @@ export function CampaignsManager({ initialCampaigns }: { initialCampaigns: Campa
                     <h4 className="font-display text-lg text-white font-bold">{campaign.name}</h4>
                     <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${campaign.is_active ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/30' : 'bg-white/5 text-white/40 border border-white/10'}`}>{campaign.is_active ? 'Active' : 'Inactive'}</span>
                     {isUpcoming && <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold bg-gold-400/10 text-gold-400 border border-gold-400/30">Upcoming</span>}
-                    {
+                    {isEnded && <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold bg-red-400/10 text-red-400 border border-red-400/30">Ended</span>}
+                  </div>
+                  <div className="text-sm text-white/50 mt-1 flex gap-4">
+                    {campaign.start_date && <span>Starts: {campaign.start_date}</span>}
+                    {campaign.end_date && <span>Ends: {campaign.end_date}</span>}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => handleEdit(campaign)} className="text-gold-400 hover:text-gold-300 text-xs">Edit</Button>
+                  <Button variant="ghost" onClick={() => handleDelete(campaign.id)} className="text-red-400 hover:text-red-300 text-xs">Delete</Button>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
