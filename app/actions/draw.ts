@@ -34,9 +34,12 @@ export type DrawResult = {
 export async function simulateDraw(
   month: number, 
   year: number, 
-  mode: DrawMode
+  mode: DrawMode,
+  skipAdminCheck?: boolean  // true when called from automated cron
 ): Promise<DrawResult & { drawId?: string }> {
-  await verifyAdmin()
+  if (!skipAdminCheck) {
+    await verifyAdmin()
+  }
   
   // ADVERSARIAL FIX: Pagination to bypass 1,000 row API limit
   const activeProfiles: any[] = []
@@ -227,10 +230,14 @@ export async function simulateDraw(
   }
 }
 
-export async function executeDraw(drawId: string) {
-  await verifyAdmin()
+export async function executeDraw(drawId: string, cronRunBy?: string) {
+  if (!cronRunBy) {
+    await verifyAdmin()
+  }
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = cronRunBy 
+    ? { data: { user: { id: cronRunBy } } } 
+    : await supabase.auth.getUser()
 
   if (!user) throw new Error('Unauthorized')
 
@@ -244,10 +251,12 @@ export async function executeDraw(drawId: string) {
     throw new Error('Draft draw not found or already executed')
   }
 
-  await supabaseAdmin
-    .from('draws')
-    .update({ status: 'pending', run_by: user.id, run_at: new Date().toISOString() })
-    .eq('id', drawId)
+  const updateFields: Record<string, any> = { status: 'pending', run_at: new Date().toISOString() }
+  // Skip run_by for cron runs to avoid FK constraint violations
+  if (user.id !== '__cron__') {
+    updateFields.run_by = user.id
+  }
+  await supabaseAdmin.from('draws').update(updateFields).eq('id', drawId)
 
   // ADVERSARIAL FIX: Safely notify without exploding payload loops
   const { data: dbWinners } = await supabaseAdmin.from('draw_winners').select('*').eq('draw_id', drawId)
@@ -318,10 +327,14 @@ export async function executeDraw(drawId: string) {
   return draw.id
 }
 
-export async function publishDraw(drawId: string) {
-  await verifyAdmin()
+export async function publishDraw(drawId: string, cronRunBy?: string) {
+  if (!cronRunBy) {
+    await verifyAdmin()
+  }
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = cronRunBy
+    ? { data: { user: { id: cronRunBy } } }
+    : await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
   const { error } = await supabaseAdmin
