@@ -96,7 +96,7 @@ export default async function ProfileSettingsPage() {
                 <h4 className="font-display text-3xl text-gold-400 font-bold mb-2">{planLabel}</h4>
                 <p className="text-white/70 font-body">
                   {profile?.subscription_plan === 'yearly' ? '₹19,999 / Year' : profile?.subscription_plan === 'monthly' ? '₹1,999 / Month' : 'No active plan'}
-                  {renewalDate && ` • Renewal: ${renewalDate}`}
+                  {renewalDate && ` • ${profile?.subscription_status === 'cancelled' ? 'Expires' : 'Renewal'}: ${renewalDate}`}
                 </p>
                 <div className="mt-6 flex items-center gap-3">
                   {isActive ? (
