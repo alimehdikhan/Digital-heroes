@@ -30,7 +30,7 @@ export async function createDonationOrder(charityId: string, amountInPaise: numb
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
-      receipt: `donation_${charityId}_${Date.now()}`,
+      receipt: `don_${Date.now()}_${charityId.substring(0, 8)}`,
       notes: {
         type: 'independent_donation',
         charityId: charityId,
