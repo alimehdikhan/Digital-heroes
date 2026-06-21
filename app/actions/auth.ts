@@ -108,6 +108,63 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
   }
 }
 
+export async function forgotPassword(prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const email = formData.get('email') as string
+
+  const validatedFields = z.object({ email: z.string().email('Invalid email address') }).safeParse({ email })
+
+  if (!validatedFields.success) {
+    return {
+      error: 'Invalid email address',
+      fieldErrors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password`,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: 'Check your email for the password reset link.' }
+}
+
+export async function resetPassword(prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (password !== confirmPassword) {
+    return { error: 'Passwords do not match' }
+  }
+
+  const validatedFields = z.object({
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+  }).safeParse({ password })
+
+  if (!validatedFields.success) {
+    return {
+      error: 'Invalid password',
+      fieldErrors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase.auth.updateUser({
+    password: validatedFields.data.password,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: 'Password updated successfully.' }
+}
+
 export async function signout() {
   const supabase = await createClient()
   await supabase.auth.signOut()

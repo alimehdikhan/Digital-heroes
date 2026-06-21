@@ -7,6 +7,8 @@ import { z } from 'zod'
 const updateProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
   bio: z.string().max(500, 'Bio cannot exceed 500 characters').optional(),
+  currency: z.enum(['INR', 'USD', 'EUR', 'GBP']).optional(),
+  countryCode: z.string().max(2).optional(),
 })
 
 export type ProfileActionState = {
@@ -19,8 +21,15 @@ export async function updateProfile(prevState: ProfileActionState, formData: For
   const name = formData.get('name') as string
   const bioRaw = formData.get('bio') as string | null
   const bio = bioRaw?.trim() || undefined
+  const currency = formData.get('currency') as string | null
+  const countryCode = formData.get('countryCode') as string | null
 
-  const validatedFields = updateProfileSchema.safeParse({ name, bio })
+  const validatedFields = updateProfileSchema.safeParse({
+    name,
+    bio,
+    currency: currency || undefined,
+    countryCode: countryCode || undefined,
+  })
 
   if (!validatedFields.success) {
     return {
@@ -36,11 +45,19 @@ export async function updateProfile(prevState: ProfileActionState, formData: For
     return { error: 'Unauthorized' }
   }
 
+  const updateData: Record<string, any> = {
+    name: validatedFields.data.name,
+  }
+  if (validatedFields.data.currency) {
+    updateData.currency = validatedFields.data.currency
+  }
+  if (validatedFields.data.countryCode) {
+    updateData.country_code = validatedFields.data.countryCode
+  }
+
   const { error } = await supabase
     .from('profiles')
-    .update({
-      name: validatedFields.data.name,
-    })
+    .update(updateData)
     .eq('id', user.id)
 
   if (error) {

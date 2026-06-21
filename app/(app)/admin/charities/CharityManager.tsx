@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { createCharity, updateCharity, deleteCharity, setActiveCharity } from "@/app/actions/admin"
 
+interface EventItem {
+  title: string
+  desc: string
+  date: string
+  img?: string
+}
+
 export function CharityManager({ initialCharities }: { initialCharities: any[] }) {
   const [charities, setCharities] = useState(initialCharities)
   const [isAdding, setIsAdding] = useState(false)
@@ -13,9 +20,32 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
   const [heroImage, setHeroImage] = useState("")
-  const [events, setEvents] = useState("")
+  const [events, setEvents] = useState<EventItem[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  const addEvent = () => {
+    setEvents([...events, { title: "", desc: "", date: "", img: "" }])
+  }
+
+  const removeEvent = (index: number) => {
+    setEvents(events.filter((_, i) => i !== index))
+  }
+
+  const updateEvent = (index: number, field: keyof EventItem, value: string) => {
+    const updated = [...events]
+    updated[index] = { ...updated[index], [field]: value }
+    setEvents(updated)
+  }
+
+  const resetForm = () => {
+    setIsAdding(false)
+    setEditingId(null)
+    setName("")
+    setDesc("")
+    setHeroImage("")
+    setEvents([])
+  }
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,14 +54,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
     formData.append('name', name)
     formData.append('description', desc)
     formData.append('hero_image_url', heroImage)
-    try {
-      if (events) JSON.parse(events)
-      formData.append('events', events)
-    } catch {
-      toast({ title: "Error", description: "Events must be valid JSON", variant: "destructive" })
-      setIsSubmitting(false)
-      return
-    }
+    formData.append('events', JSON.stringify(events.filter(ev => ev.title && ev.desc)))
     
     const res = editingId 
       ? await updateCharity(editingId, formData)
@@ -42,12 +65,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
       toast({ title: "Error", description: res.error, variant: "destructive" })
     } else {
       toast({ title: "Success", description: editingId ? "Charity updated." : "Charity added to ledger." })
-      setIsAdding(false)
-      setEditingId(null)
-      setName("")
-      setDesc("")
-      setHeroImage("")
-      setEvents("")
+      resetForm()
       window.location.reload()
     }
   }
@@ -68,7 +86,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
     setName(charity.name)
     setDesc(charity.description || "")
     setHeroImage(charity.hero_image_url || "")
-    setEvents(charity.events ? JSON.stringify(charity.events, null, 2) : "")
+    setEvents(Array.isArray(charity.events) ? charity.events : [])
   }
 
   const handleSetActive = async (id: string) => {
@@ -86,7 +104,6 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
 
   return (
     <div className="space-y-8">
-      {/* Main Action */}
       {!isAdding ? (
         <FadeIn delay={0.2} className="flex justify-center max-w-md mx-auto">
           <Button onClick={() => setIsAdding(true)} className="w-full h-16 rounded-xl font-body font-black uppercase tracking-[0.2em] text-sm transition-all shadow-gold-glow flex items-center justify-center gap-3 bg-gradient-to-r from-gold-400 to-gold-600 hover:from-gold-300 hover:to-gold-500 text-navy-950 border-none">
@@ -110,18 +127,33 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
               <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3} className="w-full bg-navy-900/50 border border-white/10 rounded-xl p-3 text-white mt-1" />
             </div>
             <div>
-              <label className="text-[10px] uppercase font-bold tracking-widest text-white/50">{"Events JSON (e.g. [{\"title\":\"...\", \"desc\":\"...\", \"date\":\"...\", \"img\":\"...\"}])"}</label>
-              <textarea value={events} onChange={e=>setEvents(e.target.value)} rows={4} className="w-full bg-navy-900/50 border border-white/10 rounded-xl p-3 text-white mt-1 font-mono text-xs" />
+              <label className="text-[10px] uppercase font-bold tracking-widest text-white/50">Events & Field Reports</label>
+              <div className="space-y-3 mt-2">
+                {events.map((ev, i) => (
+                  <div key={i} className="bg-navy-900/30 border border-white/10 rounded-xl p-4 space-y-3 relative">
+                    <button type="button" onClick={() => removeEvent(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs">✕</button>
+                    <input value={ev.title} onChange={e => updateEvent(i, 'title', e.target.value)} placeholder="Event title" className="w-full bg-navy-900/50 border border-white/10 rounded-lg p-2 text-white text-sm" />
+                    <input value={ev.date} onChange={e => updateEvent(i, 'date', e.target.value)} placeholder="Date (e.g. Mar 2026)" className="w-full bg-navy-900/50 border border-white/10 rounded-lg p-2 text-white text-sm" />
+                    <textarea value={ev.desc} onChange={e => updateEvent(i, 'desc', e.target.value)} placeholder="Description" rows={2} className="w-full bg-navy-900/50 border border-white/10 rounded-lg p-2 text-white text-sm" />
+                    <input value={ev.img || ''} onChange={e => updateEvent(i, 'img', e.target.value)} placeholder="Image URL (optional)" className="w-full bg-navy-900/50 border border-white/10 rounded-lg p-2 text-white text-sm" />
+                  </div>
+                ))}
+                {events.length === 0 && (
+                  <p className="text-white/40 text-xs font-body">No events added yet. Click below to add field reports.</p>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={addEvent} className="text-[10px] uppercase tracking-widest font-bold border-white/10 text-emerald-400 hover:bg-emerald-400/10">
+                  + Add Event
+                </Button>
+              </div>
             </div>
             <div className="flex gap-4 pt-2">
-              <Button type="button" variant="outline" onClick={() => {setIsAdding(false); setEditingId(null); setName(""); setDesc(""); setHeroImage(""); setEvents("")}} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button type="button" variant="outline" onClick={resetForm} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
               <Button type="submit" disabled={isSubmitting} className="flex-1 btn-primary bg-gold-400 hover:bg-gold-500 text-navy-950">{isSubmitting ? 'Saving...' : 'Save Initiative'}</Button>
             </div>
           </form>
         </FadeIn>
       )}
 
-      {/* Active Initiatives Grid */}
       <section className="space-y-8">
         <FadeIn delay={0.3} className="flex items-end justify-between">
           <h3 className="font-display text-3xl md:text-4xl text-white font-bold">Initiatives Ledger</h3>

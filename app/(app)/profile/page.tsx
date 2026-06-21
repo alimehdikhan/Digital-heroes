@@ -77,6 +77,8 @@ export default async function ProfileSettingsPage() {
         <ProfileForm
           defaultName={profile?.name || ''}
           email={user.email || ''}
+          defaultCurrency={profile?.currency || undefined}
+          defaultCountry={profile?.country_code || undefined}
         />
       </section>
 

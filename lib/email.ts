@@ -9,6 +9,13 @@ const resend = resendApiKey ? new Resend(resendApiKey) : null;
 // and send ONLY to the email address registered with your Resend account.
 const defaultFrom = process.env.RESEND_FROM_EMAIL || 'Digital Heroes <onboarding@resend.dev>';
 
+/**
+ * Track consecutive failures for alerting purposes.
+ * In production, this would integrate with Sentry, Datadog, or similar.
+ */
+let consecutiveFailures = 0
+const FAILURE_ALERT_THRESHOLD = 5
+
 export async function sendEmail({ 
   to, 
   subject, 
@@ -23,12 +30,13 @@ export async function sendEmail({
   try {
     if (!resend) {
       // Fallback for development if no Resend key is provided
-      console.log('=====================================================')
-      console.log(`[EMAIL DISPATCHED - DEV MODE]`)
-      console.log(`To: ${to}`)
-      console.log(`Subject: ${subject}`)
-      console.log(`Body (Text): ${body}`)
-      console.log('=====================================================')
+      console.info('=====================================================')
+      console.info(`[EMAIL DISPATCHED - DEV MODE]`)
+      console.info(`To: ${to}`)
+      console.info(`Subject: ${subject}`)
+      console.info(`Body (Text): ${body}`)
+      console.info('=====================================================')
+      consecutiveFailures = 0
       return { success: true, devMode: true }
     }
 
@@ -41,13 +49,35 @@ export async function sendEmail({
     });
 
     if (error) {
-      console.error('[EMAIL ERROR]', error);
+      consecutiveFailures++
+      console.error('[EMAIL ERROR]', error)
+      
+      // Alert when consecutive failures exceed threshold
+      if (consecutiveFailures >= FAILURE_ALERT_THRESHOLD) {
+        console.error(
+          `[EMAIL ALERT] ${consecutiveFailures} consecutive email failures. Resend API may be degraded. ` +
+          `Last error: ${error.message}. To: ${to}, Subject: ${subject}`
+        )
+        // In production, send this alert to an admin webhook/Sentry:
+        // await fetch(process.env.ADMIN_ALERT_WEBHOOK_URL, { method: 'POST', body: ... })
+      }
+      
       return { error: error.message }
     }
 
+    consecutiveFailures = 0
     return { success: true, data }
   } catch (err: any) {
-    console.error('[EMAIL ERROR]', err);
+    consecutiveFailures++
+    console.error('[EMAIL ERROR]', err)
+    
+    if (consecutiveFailures >= FAILURE_ALERT_THRESHOLD) {
+      console.error(
+        `[EMAIL ALERT] ${consecutiveFailures} consecutive email failures. Exception caught. ` +
+        `Error: ${err.message}. To: ${to}, Subject: ${subject}`
+      )
+    }
+    
     return { error: err.message || 'Failed to send email' }
   }
 }

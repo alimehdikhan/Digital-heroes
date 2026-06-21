@@ -41,7 +41,10 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
           <a href="/admin/charities" className="flex items-center justify-center px-8 h-12 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 font-body uppercase tracking-widest font-black rounded-lg transition-all">
-            Manage Charities
+            Charities
+          </a>
+          <a href="/admin/organizations" className="flex items-center justify-center px-8 h-12 border border-gold-400/30 text-gold-400 hover:bg-gold-400/10 font-body uppercase tracking-widest font-black rounded-lg transition-all">
+            Organizations
           </a>
           <a href="/admin/draws" className="flex items-center justify-center px-8 h-12 btn-primary font-body uppercase tracking-widest font-black shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-navy-950 rounded-lg">
             Initialize Draw
