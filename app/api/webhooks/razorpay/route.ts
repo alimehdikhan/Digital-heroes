@@ -248,6 +248,54 @@ export async function POST(req: Request) {
                 title: 'Donation Confirmed',
                 message: `Your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName} has been confirmed. Thank you, Hero!`,
               })
+
+              // Send donation receipt email
+              try {
+                const { data: authData } = await supabaseAdmin.auth.admin.getUserById(notes.supabaseUserId)
+                const donorEmail = authData.user?.email
+                if (donorEmail) {
+                  await sendEmail({
+                    to: donorEmail,
+                    subject: 'Donation Receipt — Digital Heroes',
+                    body: `Thank you for your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName}. Your generosity fuels global change.`,
+                    html: buildEmailTemplate(
+                      'Donation Confirmed',
+                      `<p>Thank you for your generous contribution!</p>
+                       <p><strong>Amount:</strong> ₹${amountInRupees.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                       <p><strong>Charity:</strong> ${notes.charityName}</p>
+                       <p style="margin-top: 20px;">100% of your donation goes directly to the charity. You are making a real difference.</p>`,
+                      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/charities/${notes.charityId}`,
+                      'View Charity'
+                    ),
+                  })
+                }
+              } catch {
+                // Silently skip if email resolution fails — notification was already sent
+              }
+            } else if (notes.supabaseUserId === 'anonymous') {
+              // Try to send receipt to the payer's email from payment entity
+              try {
+                const payment = payload.payload.payment?.entity
+                const payerEmail = payment?.email
+                if (payerEmail) {
+                  await sendEmail({
+                    to: payerEmail,
+                    subject: 'Donation Receipt — Digital Heroes',
+                    body: `Thank you for your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName}. Your generosity fuels global change.`,
+                    html: buildEmailTemplate(
+                      'Donation Confirmed',
+                      `<p>Thank you for your generous contribution!</p>
+                       <p><strong>Amount:</strong> ₹${amountInRupees.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                       <p><strong>Charity:</strong> ${notes.charityName}</p>
+                       <p style="margin-top: 20px;">100% of your donation goes directly to the charity. You are making a real difference.</p>`,
+                      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/charities`,
+                      'View Charities'
+                    ),
+                  })
+                }
+              } catch {
+                // Silently skip if email unavailable
+              }
             }
 
             await markEventProcessed(receiptKey, 'order.paid', { orderId: order.id, charityId: notes.charityId, amount: amountInRupees })

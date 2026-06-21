@@ -1,18 +1,33 @@
 "use client"
 
-import { useState } from "react"
-import { StaggerContainer, StaggerItem } from "@/components/ui/motion"
+import { useState, useEffect } from "react"
+import { StaggerContainer, StaggerItem, FadeIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { createSubscription } from "@/app/actions/subscription"
+import { formatPrice, CURRENCIES, DEFAULT_CURRENCY, type SupportedCurrency } from "@/lib/pricing"
 import Script from "next/script"
 import { useRouter } from "next/navigation"
 
-export function PricingPlans({ charities }: { charities: any[] }) {
+export function PricingPlans({ charities, preferredCurrency }: { charities: any[]; preferredCurrency?: string }) {
   const [selectedCharity, setSelectedCharity] = useState<string>("")
   const [charityPercentage, setCharityPercentage] = useState<number>(10)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [currency, setCurrency] = useState<SupportedCurrency>((preferredCurrency as SupportedCurrency) || DEFAULT_CURRENCY)
   const router = useRouter()
+
+  // Load user's currency preference from localStorage for anonymous visitors
+  useEffect(() => {
+    const stored = localStorage.getItem('dh_preferred_currency') as SupportedCurrency | null
+    if (stored && stored in CURRENCIES) {
+      setCurrency(stored)
+    }
+  }, [])
+
+  const persistCurrency = (code: SupportedCurrency) => {
+    setCurrency(code)
+    localStorage.setItem('dh_preferred_currency', code)
+  }
 
   const handleSubscribe = async (plan: 'monthly' | 'yearly') => {
     try {
@@ -48,7 +63,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
           router.push('/dashboard?checkout=success&payment_id=' + response.razorpay_payment_id)
         },
         theme: {
-          color: '#50C878', // emerald-400
+          color: '#50C878',
         }
       }
 
@@ -65,9 +80,38 @@ export function PricingPlans({ charities }: { charities: any[] }) {
     }
   }
 
+  const config = CURRENCIES[currency]
+  // Multiply by 100 because formatPrice expects the smallest currency unit (paise/cents)
+  // while config stores the display value (e.g. 1999 = ₹1,999)
+  const monthlyDisplay = formatPrice(config.monthlyPrice * 100, currency)
+  const yearlyDisplay = formatPrice(config.yearlyPrice * 100, currency)
+
   return (
     <>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+      
+      {/* Currency Switcher */}
+      <FadeIn className="w-full max-w-4xl mx-auto mb-6">
+        <div className="flex items-center justify-center gap-3">
+          <span className="font-body text-[10px] text-white/50 uppercase tracking-widest font-bold">Display in:</span>
+          <div className="flex gap-1 p-1 bg-navy-900/50 rounded-lg border border-white/10">
+            {Object.entries(CURRENCIES).map(([code, cfg]) => (
+              <button
+                key={code}
+                onClick={() => persistCurrency(code as SupportedCurrency)}
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${
+                  currency === code
+                    ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30'
+                    : 'text-white/50 hover:text-white border border-transparent'
+                }`}
+              >
+                {cfg.symbol} {code}
+              </button>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
       <div className="w-full max-w-4xl mx-auto mb-8 space-y-4">
         {charities && charities.length > 0 && (
           <>
@@ -109,7 +153,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
           <div className="mb-8">
             <h3 className="font-body text-sm text-white/50 uppercase tracking-[0.2em] font-bold mb-2">Monthly Hero</h3>
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="font-display text-5xl text-white font-bold">₹1,999</span>
+              <span className="font-display text-5xl text-white font-bold">{monthlyDisplay}</span>
               <span className="font-body text-white/50">/month</span>
             </div>
             <p className="font-body text-white/70 text-sm">Flexible access to the arena. Perfect for weekend warriors.</p>
@@ -150,7 +194,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
           <div className="mb-8 relative z-10">
             <h3 className="font-body text-sm text-gold-400 uppercase tracking-[0.2em] font-bold mb-2">Annual Legend</h3>
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="font-display text-5xl text-gold-400 font-bold">₹19,999</span>
+              <span className="font-display text-5xl text-gold-400 font-bold">{yearlyDisplay}</span>
               <span className="font-body text-white/50">/year</span>
             </div>
             <p className="font-body text-white/70 text-sm">Two months free. For the dedicated players building a lasting legacy.</p>

@@ -1,6 +1,7 @@
 import { SlideUp } from "@/components/ui/motion"
 import { PricingPlans } from "./PricingPlans"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 
 export default async function PricingPage() {
   // Fetch active charities for the selection dropdown
@@ -9,6 +10,25 @@ export default async function PricingPage() {
     .select('id, name')
     .eq('is_active', true)
     .eq('is_deleted', false)
+
+  // Detect user's preferred currency if logged in
+  let preferredCurrency: string | undefined
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('currency')
+        .eq('id', user.id)
+        .single()
+      if (profile?.currency) {
+        preferredCurrency = profile.currency
+      }
+    }
+  } catch {
+    // Silent fallback — user not logged in or error fetching profile
+  }
 
   return (
     <div className="pt-32 pb-24 px-5 md:px-20 max-w-7xl mx-auto min-h-dvh flex flex-col items-center">
@@ -21,7 +41,7 @@ export default async function PricingPage() {
         </p>
       </SlideUp>
 
-      <PricingPlans charities={charities || []} />
+      <PricingPlans charities={charities || []} preferredCurrency={preferredCurrency} />
     </div>
   )
 }

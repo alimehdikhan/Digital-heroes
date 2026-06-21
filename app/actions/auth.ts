@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { sendEmail, buildEmailTemplate } from '@/lib/email'
 import { z } from 'zod'
 
 const loginSchema = z.object({
@@ -94,9 +96,14 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
     }
 
     if (data.session) {
+      // Send welcome email for auto-confirmed signups
+      sendWelcomeEmail(email, name)
       revalidatePath('/', 'layout')
       redirect('/pricing')
     }
+
+    // Send welcome email if user needs to confirm (email confirmation flow)
+    sendWelcomeEmail(email, name)
 
     return { success: 'Check your email to confirm your account.' }
   } catch (err: any) {
@@ -163,6 +170,33 @@ export async function resetPassword(prevState: ActionState, formData: FormData):
   }
 
   return { success: 'Password updated successfully.' }
+}
+
+async function sendWelcomeEmail(email: string, name: string) {
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Welcome to Digital Heroes!',
+      body: `Hi ${name}, welcome to Digital Heroes! Your account is ready. Head to the pricing page to choose your subscription plan and start your journey.`,
+      html: buildEmailTemplate(
+        'Welcome, Hero! 🏆',
+        `<p>Hello <strong>${name}</strong>,</p>
+         <p>Welcome to <strong>Digital Heroes</strong> — where every golf score drives global change.</p>
+         <p>Here's what to do next:</p>
+         <ol style="color: rgba(255,255,255,0.8); line-height: 2;">
+           <li>Choose your subscription plan (monthly or yearly)</li>
+           <li>Select a charity to support with at least 10% of your subscription</li>
+           <li>Log your first 5 Stableford scores</li>
+           <li>Enter the monthly draw for a chance to win</li>
+         </ol>
+         <p>Your precision on the course translates directly to human advancement. Every point counts.</p>`,
+        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/pricing`,
+        'Choose Your Plan'
+      ),
+    })
+  } catch {
+    // Silently skip if welcome email fails — user can still proceed
+  }
 }
 
 export async function signout() {
