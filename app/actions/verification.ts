@@ -168,7 +168,7 @@ export async function markWinnerPaid(winnerId: string) {
 
   const { data: winner } = await supabaseAdmin
     .from('draw_winners')
-    .select('amount, user_id, profiles(name, auth_users!inner(email))')
+    .select('amount, user_id, profiles(name)')
     .eq('id', winnerId)
     .single()
 
@@ -186,26 +186,31 @@ export async function markWinnerPaid(winnerId: string) {
       message: `Your prize of ₹${Number(winner.amount).toLocaleString()} has been paid.`,
       type: 'payout_status',
     })
-  }
 
-  const email = winner?.profiles
-    ? (winner.profiles as any).auth_users?.email || (winner.profiles as any).auth_users?.[0]?.email
-    : null
-  const name = winner?.profiles ? (winner.profiles as any).name || 'Hero' : 'Hero'
+    // Securely resolve email via admin API (auth_users join is blocked by Supabase RLS)
+    try {
+      const { data: authData } = await supabaseAdmin.auth.admin.getUserById(winner.user_id)
+      const email = authData.user?.email
+      const name = (winner.profiles as any)?.name || 'Hero'
+      const amount = Number(winner.amount || 0)
 
-  if (email) {
-    await sendEmail({
-      to: email,
-      subject: 'Your Prize Has Been Paid! 🏆',
-      body: `Hi ${name}, your prize of ₹${winner?.amount} has been paid.`,
-      html: buildEmailTemplate(
-        'Prize Paid',
-        `<p>Hello <strong>${name}</strong>,</p>
-         <p>Your prize of <strong>₹${Number(winner?.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> has been processed and paid.</p>`,
-        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
-        'View Dashboard'
-      ),
-    })
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: 'Your Prize Has Been Paid! 🏆',
+          body: `Hi ${name}, your prize of ₹${amount} has been paid.`,
+          html: buildEmailTemplate(
+            'Prize Paid',
+            `<p>Hello <strong>${name}</strong>,</p>
+             <p>Your prize of <strong>₹${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> has been processed and paid.</p>`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+            'View Dashboard'
+          ),
+        })
+      }
+    } catch {
+      // Silently skip if email resolution fails — notification was already sent
+    }
   }
 
   revalidatePath('/admin')

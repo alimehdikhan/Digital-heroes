@@ -338,7 +338,7 @@ export async function verifyProof(proofId: string, action: 'approve' | 'reject')
   if (action === 'approve') {
     const { data: winnerInfo } = await supabaseAdmin
       .from('draw_winners')
-      .select('amount, user_id, profiles(name, auth_users!inner(email))')
+      .select('amount, user_id, profiles(name)')
       .eq('id', proof.draw_winner_id)
       .single()
 
@@ -351,24 +351,32 @@ export async function verifyProof(proofId: string, action: 'approve' | 'reject')
       })
     }
 
-    if (winnerInfo && winnerInfo.profiles) {
-      const email = (winnerInfo.profiles as any).auth_users?.email || (winnerInfo.profiles as any).auth_users?.[0]?.email
-      const name = (winnerInfo.profiles as any).name || 'Hero'
+    if (winnerInfo?.user_id) {
+      const name = (winnerInfo.profiles as any)?.name || 'Hero'
+      const amount = Number(winnerInfo.amount || 0)
 
-      if (email) {
-        await sendEmail({
-          to: email,
-          subject: 'Winner Proof Approved',
-          body: `Hi ${name}, your proof was approved. Your payout is being processed.`,
-          html: buildEmailTemplate(
-            'Proof Approved',
-            `<p>Hello <strong>${name}</strong>,</p>
-             <p>Your winning scorecard has been verified by our team.</p>
-             <p>Your prize of <strong>₹${Number(winnerInfo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> will be paid out shortly.</p>`,
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
-            'View Dashboard'
-          ),
-        })
+      // Securely resolve email via admin API (auth_users join is blocked by Supabase RLS)
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.getUserById(winnerInfo.user_id)
+        const email = authData.user?.email
+
+        if (email) {
+          await sendEmail({
+            to: email,
+            subject: 'Winner Proof Approved',
+            body: `Hi ${name}, your proof was approved. Your payout is being processed.`,
+            html: buildEmailTemplate(
+              'Proof Approved',
+              `<p>Hello <strong>${name}</strong>,</p>
+               <p>Your winning scorecard has been verified by our team.</p>
+               <p>Your prize of <strong>₹${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> will be paid out shortly.</p>`,
+              `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+              'View Dashboard'
+            ),
+          })
+        }
+      } catch {
+        // Silently skip if email resolution fails — notification was already sent
       }
     }
   } else {
