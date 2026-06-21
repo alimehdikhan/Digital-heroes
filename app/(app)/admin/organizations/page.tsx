@@ -1,20 +1,28 @@
-import { SlideUp, FadeIn } from "@/components/ui/motion"
-import { getOrganizations } from "@/app/actions/orgs"
-import { OrgManager } from "./OrgManager"
+import { getOrganizations } from '@/app/actions/organizations'
+import { OrganizationsManager } from './OrganizationsManager'
+import { SlideUp } from '@/components/ui/motion'
 
 export default async function AdminOrganizationsPage() {
-  const orgs = await getOrganizations()
+  const organizations = await getOrganizations()
+
+  const totalOrgs = organizations.length
 
   return (
-    <div className="space-y-8 pb-12">
-      <SlideUp className="pt-8">
-        <h1 className="font-display text-4xl md:text-5xl text-white font-bold mb-4">Organizations</h1>
-        <p className="text-white/70 font-body text-lg max-w-xl">Manage team and corporate accounts within the Digital Heroes ecosystem.</p>
+    <div className="space-y-8">
+      <SlideUp>
+        <div className="glass-card p-6 rounded-2xl border border-white/10">
+          <h1 className="font-display text-3xl text-gold-400 font-bold mb-1">Teams &amp; Organizations</h1>
+          <p className="text-white/50 font-body text-sm">Manage corporate and team accounts for the platform.</p>
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold font-body">Total Teams</p>
+              <p className="text-2xl font-display font-bold text-white mt-1">{totalOrgs}</p>
+            </div>
+          </div>
+        </div>
       </SlideUp>
 
-      <FadeIn>
-        <OrgManager initialOrgs={orgs} />
-      </FadeIn>
+      <OrganizationsManager initialOrganizations={organizations} />
     </div>
   )
 }

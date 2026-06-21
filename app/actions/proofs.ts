@@ -4,11 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
+const PROOF_BUCKET = 'winner-proofs'
+const SIGNED_URL_EXPIRY = 3600 // 1 hour
+
 export async function uploadWinnerProof(formData: FormData) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       return { success: false, error: 'Unauthorized' }
     }
@@ -45,12 +48,11 @@ export async function uploadWinnerProof(formData: FormData) {
 
     if (existingProof) {
       if (existingProof.status === 'pending') {
-         return { success: false, error: 'A proof is already pending review' }
+        return { success: false, error: 'A proof is already pending review' }
       }
       if (existingProof.status === 'approved') {
-         return { success: false, error: 'Proof already approved' }
+        return { success: false, error: 'Proof already approved' }
       }
-      // If rejected, they can upload a new one, but we might want to delete the old one or just update it.
     }
 
     // Upload to Supabase Storage using Admin Client (bypasses RLS)
@@ -58,11 +60,10 @@ export async function uploadWinnerProof(formData: FormData) {
     const fileName = `${user.id}-${winner.draw_id}-${Date.now()}.${fileExt}`
     const storagePath = `proofs/${fileName}`
 
-    // We need to convert the File to an ArrayBuffer for Supabase Storage
     const buffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('winner-proofs')
+      .from(PROOF_BUCKET)
       .upload(storagePath, buffer, {
         contentType: file.type,
         upsert: false
@@ -73,19 +74,22 @@ export async function uploadWinnerProof(formData: FormData) {
       return { success: false, error: 'Failed to upload image' }
     }
 
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from('winner-proofs')
-      .getPublicUrl(storagePath)
+    // Generate a signed URL for private bucket access (valid for 1 hour)
+    const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
+      .from(PROOF_BUCKET)
+      .createSignedUrl(storagePath, SIGNED_URL_EXPIRY)
 
-    // Wait, PRD says "use authorized signed URLs". Since we changed the bucket to private, 
-    // publicUrl won't work anymore. But the DB schema has `proof_url` as TEXT. 
-    // We will still store the storagePath or a placeholder, but we must use signedUrls when accessing.
-    // For now, let's keep getPublicUrl since DB might require it, but we won't rely on it.
+    if (signedUrlError) {
+      console.error('Signed URL error:', signedUrlError)
+      return { success: false, error: 'Failed to generate proof URL' }
+    }
+
+    const proofUrl = signedUrlData.signedUrl
 
     // Insert or update proof record
     if (existingProof) {
       await supabaseAdmin.from('winner_proofs').update({
-        proof_url: publicUrlData.publicUrl,
+        proof_url: proofUrl,
         storage_path: storagePath,
         file_name: file.name,
         file_size: file.size,
@@ -98,7 +102,7 @@ export async function uploadWinnerProof(formData: FormData) {
         draw_winner_id: winnerId,
         user_id: user.id,
         draw_id: winner.draw_id,
-        proof_url: publicUrlData.publicUrl,
+        proof_url: proofUrl,
         storage_path: storagePath,
         file_name: file.name,
         file_size: file.size,
@@ -109,10 +113,63 @@ export async function uploadWinnerProof(formData: FormData) {
 
     revalidatePath('/dashboard')
     revalidatePath('/admin/draws')
-    
+
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Proof upload error:', err)
-    return { success: false, error: err.message || 'An unexpected error occurred' }
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Regenerate a signed URL for an existing proof record.
+ * Only the proof owner or an admin can access this.
+ */
+export async function getProofSignedUrl(proofId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Check if user is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+
+    const { data: proof } = await supabaseAdmin
+      .from('winner_proofs')
+      .select('storage_path, user_id')
+      .eq('id', proofId)
+      .single()
+
+    if (!proof?.storage_path) {
+      return { success: false, error: 'Proof not found' }
+    }
+
+    // Only the proof owner or an admin can access the signed URL
+    if (!isAdmin && proof.user_id !== user.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const { data: signedUrlData, error } = await supabaseAdmin.storage
+      .from(PROOF_BUCKET)
+      .createSignedUrl(proof.storage_path, SIGNED_URL_EXPIRY)
+
+    if (error) {
+      return { success: false, error: 'Failed to generate URL' }
+    }
+
+    return { success: true, signedUrl: signedUrlData.signedUrl }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected error'
+    return { success: false, error: message }
   }
 }

@@ -7,9 +7,12 @@ import { v4 as uuidv4 } from 'uuid'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
 import { verifyAdmin } from '@/app/actions/admin'
 
+const PROOF_BUCKET = 'winner-proofs'
+const SIGNED_URL_EXPIRY = 3600 // 1 hour
+
 export type ActionState = {
-  error?: string | null;
-  success?: string | null;
+  error?: string | null
+  success?: string | null
 }
 
 export async function submitWinnerProof(prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -27,7 +30,6 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     return { error: 'Unauthorized' }
   }
 
-  // Get the winner record
   const { data: winner } = await supabase
     .from('draw_winners')
     .select('*')
@@ -38,26 +40,25 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     return { error: 'Invalid winner record' }
   }
 
-  // Guard against multiple active submissions
   const { data: existingProofs } = await supabase
     .from('winner_proofs')
     .select('id, status')
     .eq('draw_winner_id', winnerId)
     .order('created_at', { ascending: false })
-    
-  const latestProof = existingProofs && existingProofs.length > 0 ? existingProofs[0] : null;
+
+  const latestProof = existingProofs && existingProofs.length > 0 ? existingProofs[0] : null
 
   if (latestProof && latestProof.status !== 'rejected') {
     return { error: 'Proof has already been submitted and is currently pending or verified.' }
   }
 
-  // Upload to Supabase Storage
+  // Upload to Supabase Storage using admin client to bypass RLS
   const fileExt = file.name.split('.').pop()
   const fileName = `${uuidv4()}.${fileExt}`
   const filePath = `${user.id}/${winner.draw_id}/${fileName}`
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('winner_proofs')
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(PROOF_BUCKET)
     .upload(filePath, file)
 
   if (uploadError) {
@@ -65,15 +66,22 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     return { error: 'Failed to upload proof. Ensure the file is a valid image or PDF.' }
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from('winner_proofs')
-    .getPublicUrl(filePath)
+  const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
+    .from(PROOF_BUCKET)
+    .createSignedUrl(filePath, SIGNED_URL_EXPIRY)
+
+  if (signedUrlError) {
+    console.error('Signed URL Error:', signedUrlError)
+    return { error: 'File uploaded but failed to generate access URL.' }
+  }
+
+  const proofUrl = signedUrlData.signedUrl
 
   const payload = {
     draw_winner_id: winnerId,
     user_id: user.id,
     draw_id: winner.draw_id,
-    proof_url: publicUrlData.publicUrl,
+    proof_url: proofUrl,
     storage_path: filePath,
     file_name: file.name,
     file_size: file.size,
@@ -81,21 +89,19 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
     status: 'pending'
   }
 
-  let dbError;
-  
+  let dbError: { message: string } | null = null
+
   if (latestProof) {
-    // Update existing rejected proof
     const { error } = await supabase
       .from('winner_proofs')
       .update({ ...payload, reviewed_by: null, admin_note: null, reviewed_at: null })
       .eq('id', latestProof.id)
-    dbError = error;
+    dbError = error
   } else {
-    // Insert new proof
     const { error } = await supabase
       .from('winner_proofs')
       .insert(payload)
-    dbError = error;
+    dbError = error
   }
 
   if (dbError) {
@@ -112,7 +118,6 @@ export async function reviewWinnerProof(proofId: string, status: 'approved' | 'r
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
-  // Get proof
   const { data: proof } = await supabaseAdmin
     .from('winner_proofs')
     .select('draw_winner_id, user_id')
@@ -121,26 +126,21 @@ export async function reviewWinnerProof(proofId: string, status: 'approved' | 'r
 
   if (!proof) throw new Error('Proof not found')
 
-  // Update proof status
   await supabaseAdmin
     .from('winner_proofs')
     .update({
       status,
-      admin_note: notes,
+      admin_note: notes ?? null,
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString()
     })
     .eq('id', proofId)
 
-  // Ensure status reflects approved state but not necessarily paid
-  // Wait, no update to payout_status here. It's handled by markWinnerPaid.
-
-  // Notify the user
   await supabaseAdmin.from('notifications').insert({
     user_id: proof.user_id,
     title: status === 'approved' ? 'Proof Verified' : 'Proof Rejected',
-    message: status === 'approved' 
-      ? 'Your winner proof has been verified. Payout is being processed.' 
+    message: status === 'approved'
+      ? 'Your winner proof has been verified. Payout is being processed.'
       : `Your proof was rejected. Notes: ${notes || 'No notes provided.'}`,
     type: 'proof_status'
   })
@@ -187,17 +187,16 @@ export async function markWinnerPaid(winnerId: string) {
       type: 'payout_status',
     })
 
-    // Securely resolve email via admin API (auth_users join is blocked by Supabase RLS)
     try {
       const { data: authData } = await supabaseAdmin.auth.admin.getUserById(winner.user_id)
       const email = authData.user?.email
-      const name = (winner.profiles as any)?.name || 'Hero'
+      const name = (winner.profiles as Record<string, unknown>)?.name || 'Hero'
       const amount = Number(winner.amount || 0)
 
       if (email) {
         await sendEmail({
           to: email,
-          subject: 'Your Prize Has Been Paid! 🏆',
+          subject: 'Your Prize Has Been Paid!',
           body: `Hi ${name}, your prize of ₹${amount} has been paid.`,
           html: buildEmailTemplate(
             'Prize Paid',
@@ -209,10 +208,45 @@ export async function markWinnerPaid(winnerId: string) {
         })
       }
     } catch {
-      // Silently skip if email resolution fails — notification was already sent
+      // Silently skip if email resolution fails
     }
   }
 
   revalidatePath('/admin')
   revalidatePath('/dashboard')
+}
+
+/**
+ * Regenerate a signed URL for an existing proof.
+ * Only the proof owner or an admin can access this.
+ */
+export async function getProofSignedUrl(proofId: string): Promise<string> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+
+  const { data: proof } = await supabaseAdmin
+    .from('winner_proofs')
+    .select('storage_path, user_id')
+    .eq('id', proofId)
+    .single()
+
+  if (!proof?.storage_path) throw new Error('Proof not found')
+  if (!isAdmin && proof.user_id !== user.id) throw new Error('Unauthorized')
+
+  const { data: signedUrlData, error } = await supabaseAdmin.storage
+    .from(PROOF_BUCKET)
+    .createSignedUrl(proof.storage_path, SIGNED_URL_EXPIRY)
+
+  if (error) throw new Error('Failed to generate signed URL')
+
+  return signedUrlData.signedUrl
 }

@@ -242,6 +242,46 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['organizations']['Insert']>
       }
+      campaigns: {
+        Row: {
+          id: string
+          name: string
+          start_date: string | null
+          end_date: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          start_date?: string | null
+          end_date?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['campaigns']['Insert']>
+      }
+
+      campaigns: {
+        Row: {
+          id: string
+          name: string
+          start_date: string | null
+          end_date: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          start_date?: string | null
+          end_date?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['campaigns']['Insert']>
+      }
+
       audit_logs: {
         Row: {
           id: string
