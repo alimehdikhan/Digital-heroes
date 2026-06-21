@@ -11,11 +11,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('*')
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  console.log("ADMIN LAYOUT CHECK - profile:", profile)
+
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
     redirect('/dashboard')
   }
 
