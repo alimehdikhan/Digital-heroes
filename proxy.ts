@@ -72,7 +72,7 @@ export default async function proxy(request: NextRequest) {
   if (user && isAdminRoute) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('*')
       .eq('id', user.id)
       .single()
 
