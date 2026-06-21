@@ -173,7 +173,13 @@ export function DonateButton({ charityId, charityName }: { charityId: string; ch
               >
                 {isProcessing ? 'Processing...' : 'Donate Now'}
               </Button>
-              <p className="text-white/30 text-[10px] text-center font-body">Secure payment via Razorpay. 100% of your donation goes to the charity.</p>
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="w-full text-white/50 hover:text-white font-body text-sm uppercase tracking-widest font-bold transition-colors mt-4"
+              >
+                Cancel
+              </button>
+              <p className="text-white/30 text-[10px] text-center font-body mt-4">Secure payment via Razorpay. 100% of your donation goes to the charity.</p>
             </div>
           </div>
         </div>
