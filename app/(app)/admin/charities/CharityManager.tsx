@@ -151,7 +151,7 @@ export function CharityManager({ initialCharities }: { initialCharities: any[] }
                 <div className="space-y-4">
                   <div className="flex justify-between items-end">
                     <span className="font-body text-[10px] uppercase font-bold tracking-widest text-white/50">Total Contributed</span>
-                    <span className="font-display text-xl text-gold-400 font-bold">${Number(charity.total_contributed || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    <span className="font-display text-xl text-gold-400 font-bold">₹{Number(charity.total_contributed || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                   </div>
                   <div className="flex gap-2 w-full mt-4">
                     <Button onClick={() => startEdit(charity)} variant="outline" className="flex-1 text-[10px] uppercase tracking-widest font-bold border-white/10 text-gold-400 hover:bg-gold-400/10">Edit</Button>

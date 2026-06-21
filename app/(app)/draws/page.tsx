@@ -155,7 +155,7 @@ export default async function DrawsPage() {
             </div>
             <h3 className="font-display text-2xl text-white font-bold mb-2">Jackpot</h3>
             <p className="font-body text-xs text-gold-400 mb-2 font-bold tracking-[0.2em] uppercase">5 Matches — 40% of Pool</p>
-            {hasData && <p className="font-display text-2xl text-gold-400/70">${Number(latestDraw.jackpot_amount || 0).toLocaleString()}</p>}
+            {hasData && <p className="font-display text-2xl text-gold-400/70">₹{Number(latestDraw.jackpot_amount || 0).toLocaleString()}</p>}
           </StaggerItem>
 
           <StaggerItem className="glass-card p-8 md:p-10 rounded-[32px] border border-white/10 relative group hover:bg-white/5 transition-colors">
@@ -164,7 +164,7 @@ export default async function DrawsPage() {
             </div>
             <h3 className="font-display text-2xl text-white font-bold mb-2">Silver Tier</h3>
             <p className="font-body text-xs text-slate-400 mb-2 font-bold tracking-[0.2em] uppercase">4 Matches — 35% of Pool</p>
-            {hasData && <p className="font-display text-2xl text-slate-400/70">${Number(latestDraw.prize_4match || 0).toLocaleString()}</p>}
+            {hasData && <p className="font-display text-2xl text-slate-400/70">₹{Number(latestDraw.prize_4match || 0).toLocaleString()}</p>}
           </StaggerItem>
 
           <StaggerItem className="glass-card p-8 md:p-10 rounded-[32px] border border-white/5 relative group hover:bg-white/5 transition-colors">
@@ -173,7 +173,7 @@ export default async function DrawsPage() {
             </div>
             <h3 className="font-display text-2xl text-white font-bold mb-2">Bronze Tier</h3>
             <p className="font-body text-xs text-[#cd7f32] mb-2 font-bold tracking-[0.2em] uppercase">3 Matches — 25% of Pool</p>
-            {hasData && <p className="font-display text-2xl text-[#cd7f32]/70">${Number(latestDraw.prize_3match || 0).toLocaleString()}</p>}
+            {hasData && <p className="font-display text-2xl text-[#cd7f32]/70">₹{Number(latestDraw.prize_3match || 0).toLocaleString()}</p>}
           </StaggerItem>
         </StaggerContainer>
       </section>

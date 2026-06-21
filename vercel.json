@@ -1,0 +1,11 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/draw/execute/route",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}

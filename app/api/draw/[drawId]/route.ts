@@ -1,12 +1,22 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { errors, formatApiError } from '@/lib/utils/errors'
+import { checkRateLimit, getRequestIp } from '@/lib/rate-limiter'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ drawId: string }> }
 ) {
   try {
+    const ip = getRequestIp(request)
+    const { allowed, resetAt } = checkRateLimit(ip)
+    if (!allowed) {
+      return NextResponse.json(
+        { data: null, error: { code: 'RATE_LIMITED', message: 'Too many requests.' } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)) } }
+      )
+    }
+
     const { drawId } = await params
     const { data: draw, error } = await supabaseAdmin
       .from('draws')

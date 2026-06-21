@@ -3,6 +3,30 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
 
+/**
+ * ISSUE 3 FIX: Check if a webhook event has already been processed.
+ * Uses the Razorpay event ID to prevent duplicate processing.
+ * Stores processed event IDs in the audit_log table.
+ */
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('audit_logs')
+    .select('id')
+    .eq('entity_type', 'razorpay_webhook')
+    .eq('entity_id', eventId)
+    .maybeSingle()
+  return !!data
+}
+
+async function markEventProcessed(eventId: string, eventName: string, payload: Record<string, unknown>) {
+  await supabaseAdmin.from('audit_logs').insert({
+    entity_type: 'razorpay_webhook',
+    entity_id: eventId,
+    action: `webhook.${eventName}`,
+    new_values: payload,
+  })
+}
+
 async function notifyUserBySubscriptionId(
   subscriptionId: string,
   subject: string,
@@ -58,9 +82,16 @@ export async function POST(req: Request) {
 
     const payload = JSON.parse(rawBody)
     const event = payload.event
+    const eventId = payload.id || `${event}_${Date.now()}`
 
-    // Log the webhook
-    console.log(`[Razorpay Webhook] Received event: ${event}`)
+    // Log the webhook (use console.info for production observability)
+    console.info(`[Razorpay Webhook] Received event: ${event}`)
+
+    // ISSUE 3 FIX: Check idempotency — skip if already processed
+    if (await isEventProcessed(eventId)) {
+      console.info(`[Razorpay Webhook] Skipping duplicate event: ${eventId}`)
+      return NextResponse.json({ received: true, duplicate: true })
+    }
 
     switch (event) {
       case 'subscription.activated':
@@ -71,6 +102,19 @@ export async function POST(req: Request) {
         const userId = sub.notes?.supabaseUserId
 
         if (userId) {
+          // ISSUE 3 FIX: Check if already active
+          const { data: existingProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('subscription_status')
+            .eq('id', userId)
+            .single()
+
+          if (existingProfile?.subscription_status === 'active') {
+            console.info(`[Razorpay Webhook] User ${userId} already active, skipping`)
+            await markEventProcessed(eventId, event, { userId, subscriptionId, skipped: 'already_active' })
+            return NextResponse.json({ received: true, skipped: 'already_active' })
+          }
+
           await supabaseAdmin.from('profiles').update({
             subscription_status: 'active',
             subscription_expires_at: new Date(sub.current_end * 1000).toISOString(),
@@ -121,6 +165,19 @@ export async function POST(req: Request) {
         const sub = payload.payload.subscription.entity
         const subscriptionId = sub.id
 
+        // ISSUE 3 FIX: Check if already cancelled
+        const { data: existingProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('subscription_status')
+          .eq('razorpay_subscription_id', subscriptionId)
+          .single()
+
+        if (existingProfile?.subscription_status === 'cancelled' || existingProfile?.subscription_status === 'past_due') {
+          console.info(`[Razorpay Webhook] Subscription ${subscriptionId} already in final state, skipping`)
+          await markEventProcessed(eventId, event, { subscriptionId, skipped: 'already_processed' })
+          return NextResponse.json({ received: true, skipped: 'already_processed' })
+        }
+
         await supabaseAdmin.from('profiles').update({
           subscription_status: event === 'subscription.cancelled' || event === 'subscription.completed' ? 'cancelled' : 'past_due',
         }).eq('razorpay_subscription_id', subscriptionId)
@@ -144,9 +201,7 @@ export async function POST(req: Request) {
       }
 
       case 'payment.failed': {
-        // Payment failed for a subscription
         const payment = payload.payload.payment.entity
-        // If it's linked to a subscription
         if (payment.subscription_id) {
           await supabaseAdmin.from('profiles').update({
             subscription_status: 'past_due',
@@ -163,40 +218,47 @@ export async function POST(req: Request) {
       }
 
       case 'order.paid': {
-        // Handle independent charity donations
         const order = payload.payload.order.entity
         const notes = order.notes || {}
         
         if (notes.type === 'independent_donation' && notes.charityId) {
           const amountInRupees = order.amount / 100
           
-          // Update charity's total_contributed
-          const { data: charity } = await supabaseAdmin
-            .from('charities')
-            .select('total_contributed')
-            .eq('id', notes.charityId)
-            .single()
-
-          if (charity) {
-            await supabaseAdmin
+          // ISSUE 3 FIX: Use receipt as idempotency key for donations
+          const receiptKey = `donation_${order.receipt || order.id}`
+          const alreadyProcessed = await isEventProcessed(receiptKey)
+          if (!alreadyProcessed) {
+            const { data: charity } = await supabaseAdmin
               .from('charities')
-              .update({ total_contributed: (charity.total_contributed || 0) + amountInRupees })
+              .select('total_contributed')
               .eq('id', notes.charityId)
-          }
+              .single()
 
-          // Send notification if user is logged in
-          if (notes.supabaseUserId && notes.supabaseUserId !== 'anonymous') {
-            await supabaseAdmin.from('notifications').insert({
-              user_id: notes.supabaseUserId,
-              type: 'donation',
-              title: 'Donation Confirmed',
-              message: `Your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName} has been confirmed. Thank you, Hero!`,
-            })
+            if (charity) {
+              await supabaseAdmin
+                .from('charities')
+                .update({ total_contributed: (charity.total_contributed || 0) + amountInRupees })
+                .eq('id', notes.charityId)
+            }
+
+            if (notes.supabaseUserId && notes.supabaseUserId !== 'anonymous') {
+              await supabaseAdmin.from('notifications').insert({
+                user_id: notes.supabaseUserId,
+                type: 'donation',
+                title: 'Donation Confirmed',
+                message: `Your ₹${amountInRupees.toLocaleString()} donation to ${notes.charityName} has been confirmed. Thank you, Hero!`,
+              })
+            }
+
+            await markEventProcessed(receiptKey, 'order.paid', { orderId: order.id, charityId: notes.charityId, amount: amountInRupees })
           }
         }
         break
       }
     }
+
+    // Mark event as processed
+    await markEventProcessed(eventId, event, { summary: 'processed' })
 
     return NextResponse.json({ received: true })
   } catch (err: any) {

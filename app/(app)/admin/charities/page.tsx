@@ -19,7 +19,7 @@ export default async function AdminCharitiesPage() {
           <div className="grid grid-cols-2 gap-8 md:gap-12">
             <div className="space-y-2">
               <p className="text-white/70 font-body uppercase tracking-widest font-bold text-[10px]">Total Dispatched</p>
-              <p className="font-display text-4xl md:text-5xl lg:text-6xl text-gold-400 font-bold">${totalDispatched.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+              <p className="font-display text-4xl md:text-5xl lg:text-6xl text-gold-400 font-bold">₹{totalDispatched.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
             </div>
             <div className="space-y-2">
               <p className="text-white/70 font-body uppercase tracking-widest font-bold text-[10px]">Active Projects</p>

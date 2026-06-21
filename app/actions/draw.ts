@@ -6,6 +6,9 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendEmail, buildEmailTemplate } from '@/lib/email'
 import { verifyAdmin } from '@/app/actions/admin'
 import { getPlanPrice } from '@/lib/pricing'
+import { runDraw } from '@/lib/draw/engine'
+import { calculatePrizes } from '@/lib/draw/prizes'
+import type { DrawMode, DrawTier } from '@/types/app'
 
 export type DrawResult = {
   winningNumbers: number[];
@@ -17,7 +20,7 @@ export type DrawResult = {
   rolloverAmount: number;
   winners: {
     userId: string;
-    tier: 'jackpot' | 'silver' | 'bronze';
+    tier: DrawTier;
     matchCount: number;
     matchedNumbers: number[];
     userScores: number[];
@@ -28,52 +31,10 @@ export type DrawResult = {
   bronzeWinners?: any[];
 }
 
-// Helper to generate 5 unique numbers between 1 and 45
-function generateWinningNumbers(mode: 'random' | 'algorithmic', userScoresMap?: Map<string, number[]>): number[] {
-  const nums = new Set<number>()
-  
-  if (mode === 'algorithmic' && userScoresMap && userScoresMap.size > 0) {
-    const frequencies = new Map<number, number>()
-    for (let i = 1; i <= 45; i++) frequencies.set(i, 0)
-    
-    for (const scores of Array.from(userScoresMap.values())) {
-      for (const s of scores) {
-        frequencies.set(s, (frequencies.get(s) || 0) + 1)
-      }
-    }
-    
-    const weightedPool: number[] = []
-    const maxFreq = Math.max(...Array.from(frequencies.values()))
-    
-    for (const [num, freq] of Array.from(frequencies.entries())) {
-      const weight = (maxFreq - freq) + 1
-      for (let i = 0; i < weight; i++) {
-        weightedPool.push(num)
-      }
-    }
-    
-    while (nums.size < 5) {
-      const array = new Uint32Array(1)
-      crypto.getRandomValues(array)
-      const rIndex = array[0] % weightedPool.length
-      nums.add(weightedPool[rIndex])
-    }
-  } else {
-    while (nums.size < 5) {
-      const array = new Uint8Array(1)
-      crypto.getRandomValues(array)
-      const num = (array[0] % 45) + 1
-      nums.add(num)
-    }
-  }
-  
-  return Array.from(nums).sort((a, b) => a - b)
-}
-
 export async function simulateDraw(
   month: number, 
   year: number, 
-  mode: 'random' | 'algorithmic'
+  mode: DrawMode
 ): Promise<DrawResult & { drawId?: string }> {
   await verifyAdmin()
   
@@ -142,16 +103,15 @@ export async function simulateDraw(
     }
   }
 
-  const userScoresMap = new Map<string, number[]>()
+  // Build participants array for the draw engine (only users with 5 scores)
+  const participants: Array<{ userId: string; scores: number[] }> = []
   for (const [userId, scores] of Array.from(tempMap.entries())) {
     if (scores.length === 5) {
-      userScoresMap.set(userId, scores)
+      participants.push({ userId, scores })
     }
   }
 
-  const winningNumbers = generateWinningNumbers(mode, userScoresMap)
-  const netPool = poolAmount - charityContribution
-  
+  // Get previous rollover amount
   const { data: previousDraw } = await supabaseAdmin
     .from('draws')
     .select('jackpot_rolled_over, rollover_amount')
@@ -160,68 +120,57 @@ export async function simulateDraw(
     .limit(1)
     .single()
 
-  const previousRollover = previousDraw?.jackpot_rolled_over ? previousDraw.rollover_amount : 0
-  
-  const jackpotAmount = (netPool * 0.40) + previousRollover
-  const prize4Match = netPool * 0.35
-  const prize3Match = netPool * 0.25
+  const previousRollover = previousDraw?.jackpot_rolled_over ? Number(previousDraw.rollover_amount) : 0
+  const charityPct = activeProfiles.length > 0
+    ? Math.max(10, Math.min(...activeProfiles.map((p: any) => p.charity_percentage || 10)))
+    : 10
 
-  const winners: DrawResult['winners'] = []
-  let hasJackpotWinner = false
-  
-  for (const [userId, scores] of Array.from(userScoresMap.entries())) {
-    const matchedNumbers = scores.filter(s => winningNumbers.includes(s))
-    const matchCount = matchedNumbers.length
-    
-    if (matchCount >= 3) {
-      let tier: 'jackpot' | 'silver' | 'bronze' = 'bronze'
-      if (matchCount === 5) {
-        tier = 'jackpot'
-        hasJackpotWinner = true
-      } else if (matchCount === 4) {
-        tier = 'silver'
-      }
-
-      winners.push({
-        userId,
-        tier,
-        matchCount,
-        matchedNumbers,
-        userScores: scores,
-        amount: 0
-      })
+  // Use the draw engine from lib/draw/engine.ts instead of inline logic
+  // Handle edge case where no participants have 5 scores
+  let engineResult
+  if (participants.length === 0) {
+    const prizes = calculatePrizes(poolAmount, charityPct, previousRollover)
+    engineResult = {
+      winningNumbers: [0, 0, 0, 0, 0],
+      jackpotAmount: prizes.jackpot,
+      jackpotRolledOver: true,
+      prize4match: prizes.prize4match,
+      prize3match: prizes.prize3match,
+      charityContribution: prizes.charityContribution,
+      charityPercentage: prizes.charityPercentage,
+      totalPool: poolAmount,
+      participantCount: 0,
+      winners: [],
+      jackpotWinners: [],
+      silverWinners: [],
+      bronzeWinners: [],
     }
+  } else {
+    engineResult = await runDraw(
+      mode,
+      participants,
+      poolAmount,
+      previousRollover,
+      charityPct
+    )
   }
-
-  const jackpotWinners = winners.filter(w => w.tier === 'jackpot')
-  const silverWinners = winners.filter(w => w.tier === 'silver')
-  const bronzeWinners = winners.filter(w => w.tier === 'bronze')
-
-  winners.forEach(w => {
-    if (w.tier === 'jackpot') w.amount = jackpotAmount / jackpotWinners.length
-    if (w.tier === 'silver') w.amount = prize4Match / silverWinners.length
-    if (w.tier === 'bronze') w.amount = prize3Match / bronzeWinners.length
-  })
 
   // ADVERSARIAL FIX: Simulated Transactional Rollback
   await supabaseAdmin.from('draws').delete().match({ month, year, status: 'in_progress' })
   
-  const isRollingOverToNext = !hasJackpotWinner
-  const amountToRollOverToNext = isRollingOverToNext ? jackpotAmount : 0
-
   const { data: drawRecord, error: drawInsertError } = await supabaseAdmin
     .from('draws')
     .insert({
       month, year, mode,
-      winning_numbers: winningNumbers,
-      total_pool: poolAmount,
-      jackpot_amount: jackpotAmount,
-      prize_4match: prize4Match,
-      prize_3match: prize3Match,
-      jackpot_rolled_over: isRollingOverToNext,
-      rollover_amount: amountToRollOverToNext,
-      charity_contribution: charityContribution,
-      participant_count: userScoresMap.size,
+      winning_numbers: engineResult.winningNumbers,
+      total_pool: engineResult.totalPool,
+      jackpot_amount: engineResult.jackpotAmount,
+      prize_4match: engineResult.prize4match,
+      prize_3match: engineResult.prize3match,
+      jackpot_rolled_over: engineResult.jackpotRolledOver,
+      rollover_amount: engineResult.jackpotRolledOver ? engineResult.jackpotAmount : 0,
+      charity_contribution: engineResult.charityContribution,
+      participant_count: engineResult.participantCount,
       status: 'in_progress',
     })
     .select()
@@ -231,8 +180,8 @@ export async function simulateDraw(
     throw new Error('Critical DB Error: Failed to generate draw record.')
   }
 
-  if (winners.length > 0) {
-    const winnersToInsert = winners.map(w => ({
+  if (engineResult.winners.length > 0) {
+    const winnersToInsert = engineResult.winners.map(w => ({
       draw_id: drawRecord.id,
       user_id: w.userId,
       tier: w.tier,
@@ -257,17 +206,24 @@ export async function simulateDraw(
 
   return {
     drawId: drawRecord.id,
-    winningNumbers,
-    totalPool: poolAmount,
-    jackpotAmount: jackpotAmount,
-    prize4Match,
-    prize3Match,
-    charityContribution,
-    rolloverAmount: amountToRollOverToNext,
-    winners,
-    jackpotWinners,
-    silverWinners,
-    bronzeWinners
+    winningNumbers: engineResult.winningNumbers,
+    totalPool: engineResult.totalPool,
+    jackpotAmount: engineResult.jackpotAmount,
+    prize4Match: engineResult.prize4match,
+    prize3Match: engineResult.prize3match,
+    charityContribution: engineResult.charityContribution,
+    rolloverAmount: engineResult.jackpotRolledOver ? engineResult.jackpotAmount : 0,
+    winners: engineResult.winners.map(w => ({
+      userId: w.userId,
+      tier: w.tier,
+      matchCount: w.matchCount,
+      matchedNumbers: w.matchedNumbers,
+      userScores: w.userScores,
+      amount: w.amount,
+    })),
+    jackpotWinners: engineResult.jackpotWinners,
+    silverWinners: engineResult.silverWinners,
+    bronzeWinners: engineResult.bronzeWinners,
   }
 }
 
@@ -310,16 +266,43 @@ export async function executeDraw(drawId: string) {
       await supabaseAdmin.from('notifications').insert(notifications.slice(i, i + chunkSize))
     }
 
-    for (const w of dbWinners) {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)').eq('id', w.user_id).single()
-      if (profile && profile.auth_users) {
+    // ISSUE 2 FIX: Fetch winner profiles in batch, resolve emails via admin API
+    const userIds = dbWinners.map((w: any) => w.user_id)
+    const { data: winnerProfiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds)
+
+    // Build email map by resolving auth users individually (auth_users join is unreliable in batch)
+    const emailMap = new Map<string, string>()
+    const nameMap = new Map((winnerProfiles || []).map((p: any) => [p.id, p.name]))
+    
+    for (const userId of userIds) {
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId)
+        if (authData.user?.email) {
+          emailMap.set(userId, authData.user.email)
+        }
+      } catch {
+        // Silently skip users whose email we can't resolve
+      }
+    }
+
+    const emailBatchSize = 10
+    for (let i = 0; i < dbWinners.length; i += emailBatchSize) {
+      const batch = dbWinners.slice(i, i + emailBatchSize)
+      await Promise.allSettled(batch.map(async (w: any) => {
+        const email = emailMap.get(w.user_id)
+        const name = nameMap.get(w.user_id) || 'Hero'
+        if (!email) return
+
         await sendEmail({
-          to: (profile.auth_users as any).email || (profile.auth_users as any)?.[0]?.email,
+          to: email,
           subject: 'You Won the Digital Heroes Draw!',
-          body: `Congratulations ${profile.name}, you matched ${w.match_count} numbers and won ₹${w.amount}. Log in to claim your prize.`,
+          body: `Congratulations ${name}, you matched ${w.match_count} numbers and won ₹${w.amount}. Log in to claim your prize.`,
           html: buildEmailTemplate(
             'You are a Winner! 🏆',
-            `<p>Congratulations <strong>${profile.name}</strong>!</p>
+            `<p>Congratulations <strong>${name}</strong>!</p>
              <p>The algorithmic vault has spoken. You matched <strong>${w.match_count} numbers</strong> in the latest Digital Heroes draw.</p>
              <p>Your prize amount is <strong>₹${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>.</p>
              <p>To claim your prize, please log in to your dashboard and submit a screenshot of your winning scorecard for manual verification.</p>`,
@@ -327,7 +310,7 @@ export async function executeDraw(drawId: string) {
             'Claim Your Prize'
           )
         })
-      }
+      }))
     }
   }
 
@@ -348,25 +331,46 @@ export async function publishDraw(drawId: string) {
     
   if (error) throw error
 
-  // System Update Email to all users
-  const { data: profiles } = await supabaseAdmin.from('profiles').select('name, auth_users!inner(email)')
-  if (profiles) {
-    for (const p of profiles) {
-      if (p.auth_users) {
+  // ISSUE 2 FIX: Batch-send system notification emails to all users
+  const { data: profiles } = await supabaseAdmin.from('profiles').select('id, name')
+  if (profiles && profiles.length > 0) {
+    // Resolve emails via admin API (auth_users join is unreliable in batch)
+    const emailMap = new Map<string, string>()
+    const nameMap = new Map(profiles.map((p: any) => [p.id, p.name]))
+    
+    for (const profile of profiles) {
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.getUserById(profile.id)
+        if (authData.user?.email) {
+          emailMap.set(profile.id, authData.user.email)
+        }
+      } catch {
+        // Silently skip users whose email we can't resolve
+      }
+    }
+
+    const emailBatchSize = 10
+    for (let i = 0; i < profiles.length; i += emailBatchSize) {
+      const batch = profiles.slice(i, i + emailBatchSize)
+      await Promise.allSettled(batch.map(async (p: any) => {
+        const email = emailMap.get(p.id)
+        const name = nameMap.get(p.id) || 'Hero'
+        if (!email) return
+
         await sendEmail({
-          to: (p.auth_users as any).email || (p.auth_users as any)?.[0]?.email,
+          to: email,
           subject: 'New Draw Results Published',
-          body: `Hello ${p.name}, the results for the latest draw have been published. Check your dashboard to see if you won!`,
+          body: `Hello ${name}, the results for the latest draw have been published. Check your dashboard to see if you won!`,
           html: buildEmailTemplate(
             'Draw Results Are Live',
-            `<p>Hello <strong>${p.name}</strong>,</p>
+            `<p>Hello <strong>${name}</strong>,</p>
              <p>The algorithmic vault has completed processing the latest scores, and the draw results have been published.</p>
              <p>Head over to your dashboard to view the winning numbers and see if you secured a prize.</p>`,
             `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
             'View Results'
           )
         })
-      }
+      }))
     }
   }
 

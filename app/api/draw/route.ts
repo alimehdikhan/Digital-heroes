@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { formatApiError } from '@/lib/utils/errors'
+import { checkRateLimit, getRequestIp } from '@/lib/rate-limiter'
 
 /**
  * GET /api/draw
@@ -8,6 +9,15 @@ import { formatApiError } from '@/lib/utils/errors'
  */
 export async function GET(request: Request) {
   try {
+    const ip = getRequestIp(request)
+    const { allowed, resetAt } = checkRateLimit(ip)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: { code: 'RATE_LIMITED', message: 'Too many requests. Please slow down.' } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)) } }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') ?? '1')
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') ?? '10'), 50)

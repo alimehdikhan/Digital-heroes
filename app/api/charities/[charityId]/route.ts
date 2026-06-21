@@ -3,7 +3,20 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { updateCharitySchema } from '@/validators/charity'
 import { errors, formatApiError } from '@/lib/utils/errors'
+import { checkRateLimit, getRequestIp } from '@/lib/rate-limiter'
 import { ZodError } from 'zod'
+
+function rateLimitGuard(request: NextRequest) {
+  const ip = getRequestIp(request)
+  const { allowed, resetAt } = checkRateLimit(ip)
+  if (!allowed) {
+    return NextResponse.json(
+      { data: null, error: { code: 'RATE_LIMITED', message: 'Too many requests.' } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)) } }
+    )
+  }
+  return null
+}
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -22,6 +35,9 @@ export async function PATCH(
   { params }: { params: Promise<{ charityId: string }> }
 ) {
   try {
+    const guard = rateLimitGuard(request)
+    if (guard) return guard
+
     const { charityId } = await params
     const user = await requireAdmin()
     const body = await request.json()
@@ -73,10 +89,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ charityId: string }> }
 ) {
   try {
+    const guard = rateLimitGuard(request)
+    if (guard) return guard
+
     const { charityId } = await params
     const user = await requireAdmin()
 
