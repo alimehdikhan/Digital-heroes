@@ -1,13 +1,12 @@
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { getAdminMetrics } from "@/app/actions/admin"
+import { getAdminMetrics, getCharities } from "@/app/actions/admin"
 import { ReviewProofButtons } from "./ReviewProofButtons"
 import { MarkPaidButton } from "./MarkPaidButton"
 
 export default async function AdminDashboardPage() {
-  console.log("================ ADMIN PAGE RENDERED ================")
-  // Fetch pending proofs
+// Fetch pending proofs
   const { data: pendingProofs } = await supabaseAdmin
     .from('winner_proofs')
     .select('*, profiles!winner_proofs_user_id_fkey(name, subscription_status), draws(total_pool, jackpot_amount), draw_winners(amount, tier)')
@@ -17,11 +16,14 @@ export default async function AdminDashboardPage() {
   // Fetch full winners list
   const { data: allWinners } = await supabaseAdmin
     .from('draw_winners')
-    .select('*, profiles(name), draws(month, year)')
+    .select('*, profiles(name), draws(month, year), winner_proofs(status)')
     .order('created_at', { ascending: false })
     .limit(50)
 
   const metrics = await getAdminMetrics()
+  const charities = await getCharities()
+  const topCharities = charities.slice(0, 3)
+  const maxContribution = Math.max(...topCharities.map((c) => Number(c.total_contributed || 0)), 1)
 
   return (
     <div className="space-y-12 pb-12">
@@ -41,19 +43,19 @@ export default async function AdminDashboardPage() {
           <a href="/admin/charities" className="flex items-center justify-center px-8 h-12 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 font-body uppercase tracking-widest font-black rounded-lg transition-all">
             Manage Charities
           </a>
-          <Button className="px-8 h-12 btn-primary font-body uppercase tracking-widest font-black shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-navy-950">
+          <a href="/admin/draws" className="flex items-center justify-center px-8 h-12 btn-primary font-body uppercase tracking-widest font-black shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-navy-950 rounded-lg">
             Initialize Draw
-          </Button>
+          </a>
         </div>
       </SlideUp>
 
       {/* Metric Cards Grid */}
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { icon: "payments", trend: "Lifetime", label: "Total Revenue", value: `$${metrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
+          { icon: "payments", trend: "Lifetime", label: "Total Revenue", value: `₹${metrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
           { icon: "person_celebrate", trend: "Active", label: "Active Heroes", value: metrics.activeHeroes.toLocaleString(), color: "emerald" },
-          { icon: "military_tech", trend: "Current Pool", label: "Jackpot Size", value: `$${metrics.currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
-          { icon: "eco", trend: "Distributed", label: "Charity Pool", value: `$${metrics.totalCharity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "emerald" }
+          { icon: "military_tech", trend: "Current Pool", label: "Jackpot Size", value: `₹${metrics.currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "gold" },
+          { icon: "eco", trend: "Distributed", label: "Charity Pool", value: `₹${metrics.totalCharity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "emerald" }
         ].map((metric, i) => (
           <StaggerItem key={i} className={`glass-card p-8 rounded-2xl group hover:bg-white/5 transition-all duration-500 border border-white/5 ${metric.color === 'gold' ? 'hover:shadow-gold-glow hover:border-gold-400/30' : 'hover:shadow-emerald-glow hover:border-emerald-400/30'}`}>
             <div className="flex justify-between items-start mb-6">
@@ -81,7 +83,7 @@ export default async function AdminDashboardPage() {
               </div>
               <h2 className="font-display text-2xl text-white font-bold">Winner Approvals Needed</h2>
             </div>
-            <span className="px-4 py-1.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-red-500/30">3 Urgent</span>
+            <span className="px-4 py-1.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-red-500/30">{pendingProofs?.length || 0} Pending</span>
           </div>
 
           <div className="divide-y divide-white/5">
@@ -103,7 +105,7 @@ export default async function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="text-center sm:text-right">
-                  <p className="text-gold-400 font-display text-2xl font-bold">${Number(proof.draw_winners?.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-gold-400 font-display text-2xl font-bold">₹{Number(proof.draw_winners?.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold mt-1">Payout Amount</p>
                 </div>
                 <ReviewProofButtons proofId={proof.id} />
@@ -141,11 +143,14 @@ export default async function AdminDashboardPage() {
                     <td className="p-4 font-bold text-white">{winner.profiles?.name}</td>
                     <td className="p-4">{winner.draws?.month}/{winner.draws?.year}</td>
                     <td className="p-4 uppercase">{winner.tier} ({winner.match_count})</td>
-                    <td className="p-4 text-gold-400 font-bold">${Number(winner.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="p-4 text-gold-400 font-bold">₹{Number(winner.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="p-4 uppercase text-[10px] font-bold tracking-widest text-emerald-400">
                       <div className="flex items-center gap-2">
                         {winner.payout_status || 'PENDING'}
-                        {winner.payout_status !== 'paid' && <MarkPaidButton winnerId={winner.id} />}
+                        {winner.payout_status !== 'paid' &&
+                          winner.winner_proofs?.some((p: { status: string }) => p.status === 'approved') && (
+                          <MarkPaidButton winnerId={winner.id} />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -157,27 +162,24 @@ export default async function AdminDashboardPage() {
 
         {/* Secondary Panel: Distribution Stats */}
         <FadeIn delay={0.6} className="glass-card rounded-2xl p-8 flex flex-col border border-white/5">
-          <h2 className="font-display text-2xl text-white font-bold mb-8">Charity Alpha</h2>
+          <h2 className="font-display text-2xl text-white font-bold mb-8">Charity Totals</h2>
           <div className="space-y-8 flex-1">
-            {[
-              { label: "Ocean Recovery Fund", progress: 72 },
-              { label: "Tech for Education", progress: 45 },
-              { label: "Reforestation Init.", progress: 89 }
-            ].map((charity, i) => (
-              <div key={i}>
+            {topCharities.map((charity) => {
+              const progress = Math.round((Number(charity.total_contributed || 0) / maxContribution) * 100)
+              return (
+              <div key={charity.id}>
                 <div className="flex justify-between mb-3">
-                  <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{charity.label}</span>
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{charity.progress}% Goal</span>
+                  <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{charity.name}</span>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">₹{Number(charity.total_contributed || 0).toLocaleString()}</span>
                 </div>
                 <div className="w-full h-2 bg-navy-900 rounded-full overflow-hidden border border-white/5">
-                  <div className="h-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] rounded-full" style={{ width: `${charity.progress}%` }}></div>
+                  <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${progress}%` }}></div>
                 </div>
               </div>
-            ))}
-          </div>
-          <div className="mt-12 p-6 rounded-2xl bg-gold-400/5 border border-gold-400/20 text-center">
-            <p className="text-[10px] text-gold-400 font-bold uppercase tracking-[0.2em] mb-2">Next Impact Cycle</p>
-            <p className="font-display text-3xl font-bold text-white tracking-widest">04:12:35:12</p>
+            )})}
+            {topCharities.length === 0 && (
+              <p className="text-white/50 text-sm">No charity data yet.</p>
+            )}
           </div>
         </FadeIn>
       </div>

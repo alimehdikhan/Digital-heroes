@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server"
 import { EditCharity } from "./EditCharity"
 import { ScoreManager } from "./ScoreManager"
 import { WinnerProofUpload } from "./WinnerProofUpload"
+import { isSubscriptionActive } from "@/lib/utils/subscription"
 
 export default async function DashboardPage() {
   const latestScores = await getLatestScores()
@@ -63,17 +64,31 @@ export default async function DashboardPage() {
   const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
   const hoursLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))
 
-  // Approximate Draws entered: Count of completed draws since the user's account was created
-  const { count: drawsEntered } = await supabaseAdmin
+  // Draws entered: completed draws where user had 5+ scores in that month
+  const { data: completedDraws } = await supabaseAdmin
     .from('draws')
-    .select('*', { count: 'exact', head: true })
+    .select('month, year')
     .eq('status', 'completed')
-    .gte('created_at', profile?.created_at || new Date(0).toISOString())
+
+  const { data: userScoreDates } = await supabase
+    .from('scores')
+    .select('date')
+    .eq('user_id', user?.id || '')
+
+  let drawsEntered = 0
+  for (const draw of completedDraws || []) {
+    const countInMonth =
+      userScoreDates?.filter((s) => {
+        const d = new Date(s.date)
+        return d.getMonth() + 1 === draw.month && d.getFullYear() === draw.year
+      }).length || 0
+    if (countInMonth >= 5) drawsEntered++
+  }
 
   const upcomingDrawDate = endOfMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const minsLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)))
 
-  const isActive = profile?.subscription_status === 'active' || profile?.subscription_status === 'trialing'
+  const isActive = isSubscriptionActive(profile)
   const heroLabel = isActive 
     ? (profile?.subscription_plan === 'yearly' ? 'LEGEND' : 'HERO') 
     : 'INACTIVE'
@@ -114,7 +129,7 @@ export default async function DashboardPage() {
           <h3 className="font-body text-xs text-white/50 font-bold uppercase tracking-[0.2em] mb-2">CURRENT JACKPOT</h3>
           <div className="relative">
             <span className="font-display text-4xl md:text-6xl text-emerald-400 font-bold tracking-tight block drop-shadow-md">
-              ${currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              ₹{currentJackpot.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
             <div className="absolute -inset-2 bg-emerald-400/10 blur-xl rounded-full -z-10"></div>
           </div>
@@ -134,11 +149,11 @@ export default async function DashboardPage() {
           <div className="mt-8 space-y-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/70 font-body">Total Winnings</span>
-              <span className="text-white font-bold font-display text-lg">${totalWinnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              <span className="text-white font-bold font-display text-lg">₹{totalWinnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/70 font-body">Draws Entered</span>
-              <span className="text-white font-bold font-display text-lg">{drawsEntered || 0}</span>
+              <span className="text-white font-bold font-display text-lg">{drawsEntered}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/70 font-body">Active Scores</span>
@@ -230,7 +245,7 @@ export default async function DashboardPage() {
             <div key={win.id} className="space-y-4">
               <StaggerItem className="glass-card rounded-xl p-5 flex items-center justify-between border border-white/5">
                 <div>
-                  <p className="font-display text-xl text-white font-bold">${Number(win.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="font-display text-xl text-white font-bold">₹{Number(win.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   <p className="text-[10px] text-white/40 font-body font-bold uppercase tracking-widest mt-1">
                     {(win.draws as any)?.month}/{(win.draws as any)?.year} • {win.tier}
                   </p>

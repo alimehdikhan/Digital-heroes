@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
+import { sendEmail, buildEmailTemplate } from '@/lib/email'
+import { verifyAdmin } from '@/app/actions/admin'
 
 export type ActionState = {
   error?: string | null;
@@ -105,19 +107,10 @@ export async function submitWinnerProof(prevState: ActionState, formData: FormDa
 }
 
 export async function reviewWinnerProof(proofId: string, status: 'approved' | 'rejected', notes?: string) {
+  await verifyAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) throw new Error('Unauthorized')
-
-  // Check if admin
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') throw new Error('Forbidden')
 
   // Get proof
   const { data: proof } = await supabaseAdmin
@@ -156,21 +149,29 @@ export async function reviewWinnerProof(proofId: string, status: 'approved' | 'r
 }
 
 export async function markWinnerPaid(winnerId: string) {
+  await verifyAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) throw new Error('Unauthorized')
 
-  // Check if admin
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
+  const { data: proof } = await supabaseAdmin
+    .from('winner_proofs')
+    .select('id, status')
+    .eq('draw_winner_id', winnerId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!proof || proof.status !== 'approved') {
+    throw new Error('Winner proof must be approved before marking payout as paid')
+  }
+
+  const { data: winner } = await supabaseAdmin
+    .from('draw_winners')
+    .select('amount, user_id, profiles(name, auth_users!inner(email))')
+    .eq('id', winnerId)
     .single()
 
-  if (profile?.role !== 'admin') throw new Error('Forbidden')
-
-  // Update payout status
   const { error } = await supabaseAdmin
     .from('draw_winners')
     .update({ payout_status: 'paid' })
@@ -178,5 +179,35 @@ export async function markWinnerPaid(winnerId: string) {
 
   if (error) throw new Error(error.message)
 
+  if (winner?.user_id) {
+    await supabaseAdmin.from('notifications').insert({
+      user_id: winner.user_id,
+      title: 'Payout Completed',
+      message: `Your prize of ₹${Number(winner.amount).toLocaleString()} has been paid.`,
+      type: 'payout_status',
+    })
+  }
+
+  const email = winner?.profiles
+    ? (winner.profiles as any).auth_users?.email || (winner.profiles as any).auth_users?.[0]?.email
+    : null
+  const name = winner?.profiles ? (winner.profiles as any).name || 'Hero' : 'Hero'
+
+  if (email) {
+    await sendEmail({
+      to: email,
+      subject: 'Your Prize Has Been Paid! 🏆',
+      body: `Hi ${name}, your prize of ₹${winner?.amount} has been paid.`,
+      html: buildEmailTemplate(
+        'Prize Paid',
+        `<p>Hello <strong>${name}</strong>,</p>
+         <p>Your prize of <strong>₹${Number(winner?.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> has been processed and paid.</p>`,
+        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+        'View Dashboard'
+      ),
+    })
+  }
+
   revalidatePath('/admin')
+  revalidatePath('/dashboard')
 }

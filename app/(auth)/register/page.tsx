@@ -126,9 +126,10 @@ export default function RegisterPage() {
             <label className="block font-body text-xs text-white/50 uppercase tracking-widest font-bold ml-1">Supported Charity</label>
             <select 
               name="charity_id"
+              required
               className="w-full bg-navy-950/50 border border-white/10 rounded-xl px-5 py-4 text-white font-body focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-all appearance-none" 
             >
-              <option value="">Select a charity to support (10% of your pool)</option>
+              <option value="" disabled>Select a charity to support (min 10%)</option>
               {charities.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

@@ -1,11 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { isSubscriptionActive } from '@/lib/utils/subscription'
+
+const SUBSCRIBER_ONLY_PREFIXES = ['/scores', '/draws', '/proofs']
+const APP_PREFIXES = [
+  '/dashboard',
+  '/profile',
+  '/scores',
+  '/draws',
+  '/proofs',
+  '/notifications',
+  '/admin',
+]
 
 export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request: { headers: request.headers },
   })
 
   const supabase = createServerClient(
@@ -17,12 +27,10 @@ export default async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
           })
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options)
           })
@@ -35,73 +43,57 @@ export default async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
-  const isAppRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
-                     request.nextUrl.pathname.startsWith('/profile') || 
-                     request.nextUrl.pathname.startsWith('/scores') ||
-                     request.nextUrl.pathname.startsWith('/admin')
+  const pathname = request.nextUrl.pathname
+  const isAuthRoute =
+    pathname.startsWith('/login') || pathname.startsWith('/register')
+  const isAppRoute = APP_PREFIXES.some((p) => pathname.startsWith(p))
+  const isAdminRoute = pathname.startsWith('/admin')
+  const isSubscriberRoute = SUBSCRIBER_ONLY_PREFIXES.some((p) => pathname.startsWith(p))
+  const isScoresApi =
+    pathname.startsWith('/api/scores') &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
 
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+  const redirectWithCookies = (url: URL) => {
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return response
+  }
 
-  // Redirect unauthenticated users away from protected routes
   if (!user && isAppRoute) {
-    const redirectUrl = new URL('/login', request.url)
-    const response = NextResponse.redirect(redirectUrl)
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie.name, cookie.value, cookie)
-    })
-    return response
+    return redirectWithCookies(new URL('/login', request.url))
   }
 
-  // Redirect authenticated users away from auth routes
   if (user && isAuthRoute) {
-    const redirectUrl = new URL('/dashboard', request.url)
-    const response = NextResponse.redirect(redirectUrl)
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie.name, cookie.value, cookie)
-    })
-    return response
+    return redirectWithCookies(new URL('/dashboard', request.url))
   }
 
-  // Admin RBAC
   if (user && isAdminRoute) {
-    // Need to fetch user profile to check role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
-      const redirectUrl = new URL('/dashboard', request.url)
-      const response = NextResponse.redirect(redirectUrl)
-      supabaseResponse.cookies.getAll().forEach((cookie) => {
-        response.cookies.set(cookie.name, cookie.value, cookie)
-      })
-      return response
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+      return redirectWithCookies(new URL('/dashboard', request.url))
     }
   }
 
-  // Real-time subscription check for highly interactive transactional routes
-  const isRestrictedPath = request.nextUrl.pathname.startsWith('/scores/new')
-  
-  if (user && isRestrictedPath) {
+  // PRD: real-time subscription check on every authenticated app/API request
+  if (user && (isAppRoute || isScoresApi)) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('subscription_status, subscription_expires_at')
+      .select('subscription_status, subscription_expires_at, role')
       .eq('id', user.id)
       .single()
 
-    const isActive = profile ? ['active', 'trialing'].includes(profile.subscription_status) : false
-    const isGracePeriod = profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date()
+    const hasAccess = isSubscriptionActive(profile)
+    const isAdminUser = profile?.role === 'admin' || profile?.role === 'super_admin'
 
-    if (!profile || (!isActive && !isGracePeriod)) {
-      const redirectUrl = new URL('/pricing', request.url)
-      const response = NextResponse.redirect(redirectUrl)
-      supabaseResponse.cookies.getAll().forEach((cookie) => {
-        response.cookies.set(cookie.name, cookie.value, cookie)
-      })
-      return response
+    if ((isSubscriberRoute || isScoresApi) && !hasAccess && !isAdminUser) {
+      return redirectWithCookies(new URL('/pricing', request.url))
     }
   }
 
@@ -109,7 +101,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

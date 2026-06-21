@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProfileForm } from './ProfileForm'
 import { LogoutButton } from '@/components/LogoutButton'
+import { CancelSubscriptionButton } from './CancelSubscriptionButton'
 
 export default async function ProfileSettingsPage() {
   const supabase = await createClient()
@@ -112,9 +113,12 @@ export default async function ProfileSettingsPage() {
                 </div>
               </div>
               
-              <Link href="/pricing" className="w-full md:w-auto inline-flex items-center justify-center px-8 h-14 btn-primary rounded-xl text-navy-950 font-body uppercase tracking-widest font-black shrink-0">
-                {isActive ? 'Manage Plan' : 'Subscribe Now'}
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                <Link href="/pricing" className="inline-flex items-center justify-center px-8 h-14 btn-primary rounded-xl text-navy-950 font-body uppercase tracking-widest font-black shrink-0">
+                  {isActive ? 'Change Plan' : 'Subscribe Now'}
+                </Link>
+                {isActive && <CancelSubscriptionButton />}
+              </div>
             </div>
           </div>
         </FadeIn>

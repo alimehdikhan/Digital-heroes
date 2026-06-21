@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { verifyProof } from '@/app/actions/admin'
+import { reviewWinnerProof } from '@/app/actions/verification'
 
 export function ProofVerificationTable({ proofs }: { proofs: any[] }) {
   const [processingId, setProcessingId] = useState<string | null>(null)
   
   const handleVerify = async (proofId: string, action: 'approve' | 'reject') => {
     setProcessingId(proofId)
-    await verifyProof(proofId, action)
+    await reviewWinnerProof(proofId, action === 'approve' ? 'approved' : 'rejected')
     setProcessingId(null)
   }
 
@@ -63,7 +63,7 @@ export function ProofVerificationTable({ proofs }: { proofs: any[] }) {
                 disabled={processingId === proof.id}
                 className="bg-emerald-400 text-navy-950 hover:bg-emerald-300 h-10 px-6 font-bold text-xs uppercase tracking-widest"
               >
-                {processingId === proof.id ? 'Processing...' : 'Approve & Mark Paid'}
+                {processingId === proof.id ? 'Processing...' : 'Approve Proof'}
               </Button>
               <Button 
                 onClick={() => handleVerify(proof.id, 'reject')}

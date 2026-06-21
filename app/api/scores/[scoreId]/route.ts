@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { errors, formatApiError } from '@/lib/utils/errors'
+import { isSubscriptionActive } from '@/lib/utils/subscription'
 
 export async function DELETE(
   _request: NextRequest,
@@ -11,6 +12,16 @@ export async function DELETE(
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw errors.unauthorized()
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_status, subscription_expires_at')
+      .eq('id', user.id)
+      .single()
+
+    if (!isSubscriptionActive(profile)) {
+      throw errors.subscriptionRequired()
+    }
 
     const { error } = await supabase
       .from('scores')

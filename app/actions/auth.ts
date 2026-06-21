@@ -14,8 +14,8 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  charity_id: z.string().optional().or(z.literal('')),
-  charity_percentage: z.number().min(10).max(100).optional(),
+  charity_id: z.string().uuid('Please select a charity to support'),
+  charity_percentage: z.number().min(10).max(100).default(10),
 })
 
 export type ActionState = {
@@ -72,12 +72,10 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
 
     const supabase = await createClient()
 
-    const metaData: any = { full_name: name }
-    if (charity_id) {
-      metaData.supported_charity_id = charity_id
-    }
-    if (charity_percentage) {
-      metaData.charity_percentage = charity_percentage
+    const metaData = {
+      full_name: name,
+      supported_charity_id: charity_id,
+      charity_percentage: charity_percentage ?? 10,
     }
 
     // Supabase Auth Signup
@@ -97,7 +95,7 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
 
     if (data.session) {
       revalidatePath('/', 'layout')
-      redirect('/dashboard')
+      redirect('/pricing')
     }
 
     return { success: 'Check your email to confirm your account.' }

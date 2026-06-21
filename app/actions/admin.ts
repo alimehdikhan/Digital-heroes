@@ -181,41 +181,95 @@ export async function setActiveCharity(id: string) {
 
 export async function getAnalyticsData() {
   await verifyAdmin()
-  // We'll mock some historical data for the charts since we don't have months of real data yet
-  // but we will also fetch real current aggregates to anchor the end of the charts.
 
-  const { count: totalUsers } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true })
-  const { count: activeSubs } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).eq('subscription_status', 'active')
-  
-  const { data: draws } = await supabaseAdmin.from('draws').select('total_pool, created_at').order('created_at', { ascending: true })
-  
-  const currentTotalUsers = totalUsers || 0
-  const currentActiveSubs = activeSubs || 0
+  const { count: totalUsers } = await supabaseAdmin
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+  const { count: activeSubs } = await supabaseAdmin
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .in('subscription_status', ['active', 'trialing'])
 
-  // Mocked time series data for Area Chart (User Growth)
-  const userGrowthData = [
-    { name: 'Jan', total: Math.floor(currentTotalUsers * 0.4), active: Math.floor(currentActiveSubs * 0.3) },
-    { name: 'Feb', total: Math.floor(currentTotalUsers * 0.6), active: Math.floor(currentActiveSubs * 0.5) },
-    { name: 'Mar', total: Math.floor(currentTotalUsers * 0.7), active: Math.floor(currentActiveSubs * 0.7) },
-    { name: 'Apr', total: Math.floor(currentTotalUsers * 0.8), active: Math.floor(currentActiveSubs * 0.8) },
-    { name: 'May', total: Math.floor(currentTotalUsers * 0.9), active: Math.floor(currentActiveSubs * 0.9) },
-    { name: 'Jun', total: currentTotalUsers, active: currentActiveSubs },
-  ]
+  const { data: profilesByMonth } = await supabaseAdmin
+    .from('profiles')
+    .select('created_at, subscription_status')
+    .order('created_at', { ascending: true })
 
-  // Mocked time series data for Stacked Bar (Financials)
-  // Pool is ~10x the charity minimum contribution
-  const financialData = [
-    { name: 'Jan', pool: 12000, charity: 1200 },
-    { name: 'Feb', pool: 24000, charity: 2400 },
-    { name: 'Mar', pool: 35000, charity: 3500 },
-    { name: 'Apr', pool: 40000, charity: 4000 },
-    { name: 'May', pool: 45000, charity: 4500 },
-    { name: 'Jun', pool: draws && draws.length > 0 ? draws[draws.length-1].total_pool : 50000, charity: draws && draws.length > 0 ? draws[draws.length-1].total_pool * 0.1 : 5000 },
-  ]
+  const { data: draws } = await supabaseAdmin
+    .from('draws')
+    .select('total_pool, charity_contribution, month, year, created_at, participant_count, jackpot_rolled_over')
+    .eq('status', 'completed')
+    .order('created_at', { ascending: true })
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const userGrowthMap = new Map<string, { total: number; active: number }>()
+  const financialMap = new Map<string, { pool: number; charity: number }>()
+
+  for (const p of profilesByMonth || []) {
+    const d = new Date(p.created_at)
+    const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`
+    const entry = userGrowthMap.get(key) || { total: 0, active: 0 }
+    entry.total += 1
+    if (['active', 'trialing'].includes(p.subscription_status)) entry.active += 1
+    userGrowthMap.set(key, entry)
+  }
+
+  for (const draw of draws || []) {
+    const key = `${monthNames[draw.month - 1]} ${draw.year}`
+    financialMap.set(key, {
+      pool: Number(draw.total_pool || 0),
+      charity: Number(draw.charity_contribution || 0),
+    })
+  }
+
+  const userGrowthData = Array.from(userGrowthMap.entries()).slice(-6).map(([name, v]) => ({
+    name,
+    total: v.total,
+    active: v.active,
+  }))
+
+  const financialData = Array.from(financialMap.entries()).slice(-6).map(([name, v]) => ({
+    name,
+    pool: v.pool,
+    charity: v.charity,
+  }))
+
+  if (userGrowthData.length === 0) {
+    userGrowthData.push({
+      name: monthNames[new Date().getMonth()],
+      total: totalUsers || 0,
+      active: activeSubs || 0,
+    })
+  }
+
+  const { data: charities } = await supabaseAdmin
+    .from('charities')
+    .select('id, name, total_contributed, is_active')
+    .eq('is_deleted', false)
+    .order('total_contributed', { ascending: false })
+
+  const drawStats = {
+    totalDraws: draws?.length || 0,
+    rollovers: draws?.filter((d) => d.jackpot_rolled_over).length || 0,
+    avgParticipants:
+      draws && draws.length > 0
+        ? Math.round(
+            draws.reduce((acc, d) => acc + (d.participant_count || 0), 0) / draws.length
+          )
+        : 0,
+  }
 
   return {
     userGrowthData,
-    financialData
+    financialData,
+    summary: {
+      totalUsers: totalUsers || 0,
+      activeSubs: activeSubs || 0,
+      totalCharity: charities?.reduce((acc, c) => acc + Number(c.total_contributed || 0), 0) || 0,
+      totalPool: draws?.reduce((acc, d) => acc + Number(d.total_pool || 0), 0) || 0,
+    },
+    charities: charities || [],
+    drawStats,
   }
 }
 
@@ -231,14 +285,16 @@ export async function getAdminMetrics() {
   const totalPoolAllTime = draws?.reduce((acc, d) => acc + (d.total_pool || 0), 0) || 0
 
   // For current jackpot size, we can mock a simulation call, or just use the last rollover + current pool
-  const { data: activeProfiles } = await supabaseAdmin.from('profiles').select('subscription_plan').in('subscription_status', ['active', 'trialing'])
+  const { data: activeProfiles } = await supabaseAdmin.from('profiles').select('subscription_plan, charity_percentage').in('subscription_status', ['active', 'trialing'])
   let calculatedPool = 0
   if (activeProfiles && activeProfiles.length > 0) {
     for (const p of activeProfiles) {
-      calculatedPool += getPlanPrice(p.subscription_plan)
+      const fee = getPlanPrice(p.subscription_plan)
+      const monthlyEquivalent = p.subscription_plan === 'yearly' ? fee / 12 : fee
+      calculatedPool += monthlyEquivalent
     }
   }
-  const poolAmount = calculatedPool > 0 ? calculatedPool : 50000
+  const poolAmount = calculatedPool > 0 ? calculatedPool : 0
 
   const { data: previousDraw } = await supabaseAdmin.from('draws').select('jackpot_rolled_over, rollover_amount').eq('status', 'completed').order('created_at', { ascending: false }).limit(1).single()
   const rolloverAmount = previousDraw?.jackpot_rolled_over ? previousDraw.rollover_amount : 0
@@ -278,38 +334,40 @@ export async function verifyProof(proofId: string, action: 'approve' | 'reject')
     return { success: false, error: 'Failed to update proof status' }
   }
 
-  // If approved, mark the winner as paid (or approved)
+  // Approve/reject proof only — payout is marked separately (PRD: Pending → Paid)
   if (action === 'approve') {
-    await supabaseAdmin
-      .from('draw_winners')
-      .update({ payout_status: 'paid' })
-      .eq('id', proof.draw_winner_id)
-
-    // Notify user of payout
     const { data: winnerInfo } = await supabaseAdmin
       .from('draw_winners')
       .select('amount, user_id, profiles(name, auth_users!inner(email))')
       .eq('id', proof.draw_winner_id)
       .single()
 
+    if (winnerInfo?.user_id) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: winnerInfo.user_id,
+        title: 'Proof Verified',
+        message: 'Your winner proof has been approved. Payout will be processed shortly.',
+        type: 'proof_status',
+      })
+    }
+
     if (winnerInfo && winnerInfo.profiles) {
       const email = (winnerInfo.profiles as any).auth_users?.email || (winnerInfo.profiles as any).auth_users?.[0]?.email
-      const name = (winnerInfo.profiles as any).name || (Array.isArray(winnerInfo.profiles) && winnerInfo.profiles[0]?.name) || 'Hero'
-      
+      const name = (winnerInfo.profiles as any).name || 'Hero'
+
       if (email) {
         await sendEmail({
           to: email,
-          subject: 'Your Prize Has Been Processed! 🏆',
-          body: `Hi ${name}, your proof was approved and your $${winnerInfo.amount} prize has been processed!`,
+          subject: 'Winner Proof Approved',
+          body: `Hi ${name}, your proof was approved. Your payout is being processed.`,
           html: buildEmailTemplate(
-            'Prize Processed',
+            'Proof Approved',
             `<p>Hello <strong>${name}</strong>,</p>
-             <p>Great news! Our administrators have verified your winning scorecard.</p>
-             <p>Your prize of <strong>$${winnerInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> has now been processed and sent to your account.</p>
-             <p>Keep playing and staying active on the leaderboard!</p>`,
+             <p>Your winning scorecard has been verified by our team.</p>
+             <p>Your prize of <strong>₹${Number(winnerInfo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> will be paid out shortly.</p>`,
             `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
             'View Dashboard'
-          )
+          ),
         })
       }
     }

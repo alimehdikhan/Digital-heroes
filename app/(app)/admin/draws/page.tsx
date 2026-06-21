@@ -4,8 +4,14 @@ import { DrawCountdown } from "./DrawCountdown"
 import { ProofVerificationTable } from "./ProofVerificationTable"
 import { PublishDrawButton } from "./PublishDrawButton"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { getAdminMetrics } from "@/app/actions/admin"
 
 export default async function AdminDrawsPage() {
+  const metrics = await getAdminMetrics()
+  const { count: participantCount } = await supabaseAdmin
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .in('subscription_status', ['active', 'trialing'])
   const { data: dbDraws } = await supabaseAdmin
     .from('draws')
     .select('*')
@@ -22,7 +28,7 @@ export default async function AdminDrawsPage() {
   const pastDraws = dbDraws?.map(d => ({
     date: new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     sequence: d.winning_numbers as number[],
-    distributed: `$${d.total_pool.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    distributed: `₹${d.total_pool.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     badge: d.jackpot_rolled_over ? "Rollover Occurred" : "Jackpot Won",
     color: d.jackpot_rolled_over ? "gold" : "emerald"
   })) || []
@@ -71,15 +77,15 @@ export default async function AdminDrawsPage() {
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StaggerItem className="glass-card p-8 rounded-2xl space-y-2 border border-white/5">
           <span className="font-body text-[10px] uppercase font-bold tracking-widest text-white/50">Current Jackpot</span>
-          <div className="font-display text-4xl text-gold-400 font-bold">$1,248,515</div>
+          <div className="font-display text-4xl text-gold-400 font-bold">₹{metrics.currentJackpot.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
           <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-widest pt-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            <span>+12.4% from last draw</span>
+            <span>From active subscriptions</span>
           </div>
         </StaggerItem>
         <StaggerItem className="glass-card p-8 rounded-2xl space-y-2 border border-white/5">
           <span className="font-body text-[10px] uppercase font-bold tracking-widest text-white/50">Total Participants</span>
-          <div className="font-display text-4xl text-white font-bold">124,092</div>
+          <div className="font-display text-4xl text-white font-bold">{(participantCount || 0).toLocaleString()}</div>
           <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase tracking-widest pt-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Verified Active Heros</span>

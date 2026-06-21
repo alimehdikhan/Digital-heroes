@@ -18,7 +18,12 @@ export function PricingPlans({ charities }: { charities: any[] }) {
     try {
       setLoading(plan)
       setError(null)
-      const res = await createSubscription(plan, selectedCharity || null, charityPercentage)
+      if (!selectedCharity) {
+        setError('Please select a charity before subscribing.')
+        setLoading(null)
+        return
+      }
+      const res = await createSubscription(plan, selectedCharity, charityPercentage)
       
       if (res.error) {
         if (res.error === 'Unauthorized') {
@@ -63,6 +68,41 @@ export function PricingPlans({ charities }: { charities: any[] }) {
   return (
     <>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+      <div className="w-full max-w-4xl mx-auto mb-8 space-y-4">
+        {charities && charities.length > 0 && (
+          <>
+            <div className="space-y-2">
+              <label className="block font-body text-xs text-emerald-400 uppercase font-bold tracking-widest">Select Your Charity (required)</label>
+              <select
+                value={selectedCharity}
+                onChange={(e) => setSelectedCharity(e.target.value)}
+                required
+                className="w-full bg-navy-900 border border-emerald-400/30 rounded-xl px-4 py-3 text-white font-body outline-none appearance-none cursor-pointer focus:border-emerald-400"
+              >
+                <option value="">Choose a charity partner</option>
+                {charities.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <label className="block font-body text-xs text-emerald-400 uppercase font-bold tracking-widest">Charity Contribution (%)</label>
+                <span className="text-white text-xs font-bold">{charityPercentage}%</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                value={charityPercentage}
+                onChange={(e) => setCharityPercentage(parseInt(e.target.value))}
+                className="w-full accent-emerald-400"
+              />
+              <p className="text-[10px] text-white/50 font-body uppercase tracking-widest text-right">Minimum: 10%</p>
+            </div>
+          </>
+        )}
+      </div>
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mx-auto">
         {/* Monthly Plan */}
         <StaggerItem className="glass-card rounded-[32px] p-10 flex flex-col h-full relative group border border-white/5 hover:border-white/10 transition-all">
@@ -125,40 +165,7 @@ export function PricingPlans({ charities }: { charities: any[] }) {
             ))}
           </div>
 
-          <div className="mt-auto relative group/btn z-10 space-y-4">
-            {charities && charities.length > 0 && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block font-body text-xs text-gold-400 uppercase font-bold tracking-widest">Select Your Preferred Charity</label>
-                  <select 
-                    value={selectedCharity}
-                    onChange={(e) => setSelectedCharity(e.target.value)}
-                    className="w-full bg-navy-900 border border-gold-400/30 rounded-xl px-4 py-3 text-white font-body outline-none appearance-none cursor-pointer focus:border-gold-400"
-                  >
-                    <option value="">Default Distribution</option>
-                    {charities.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <label className="block font-body text-xs text-gold-400 uppercase font-bold tracking-widest">Charity Contribution (%)</label>
-                    <span className="text-white text-xs font-bold">{charityPercentage}%</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="10" 
-                    max="100" 
-                    value={charityPercentage} 
-                    onChange={(e) => setCharityPercentage(parseInt(e.target.value))}
-                    className="w-full accent-gold-400"
-                  />
-                  <p className="text-[10px] text-white/50 font-body uppercase tracking-widest text-right">Min: 10%</p>
-                </div>
-              </div>
-            )}
-
+          <div className="mt-auto relative group/btn z-10">
             <div className="relative">
               {error && <div className="text-red-400 text-xs mb-3 text-center relative z-20">{error}</div>}
               <div className="absolute -inset-1 bg-gold-400/30 blur-xl rounded-xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>

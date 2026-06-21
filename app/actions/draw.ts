@@ -117,7 +117,7 @@ export async function simulateDraw(
   const poolAmount = calculatedPool
   const charityContribution = calculatedCharity
 
-  // ADVERSARIAL FIX: Chunk activeUserIds to avoid Postgres/REST parameter limits
+  // Load scores for the draw month (PRD: monthly draw participation)
   const allScores: any[] = []
   const chunkSize = 500
   for (let i = 0; i < activeUserIds.length; i += chunkSize) {
@@ -126,6 +126,8 @@ export async function simulateDraw(
       .from('scores')
       .select('user_id, score, date')
       .in('user_id', chunk)
+      .gte('date', `${year}-${String(month).padStart(2, '0')}-01`)
+      .lte('date', `${year}-${String(month).padStart(2, '0')}-31`)
       .order('date', { ascending: false })
       
     if (data) allScores.push(...data)
@@ -219,6 +221,7 @@ export async function simulateDraw(
       jackpot_rolled_over: isRollingOverToNext,
       rollover_amount: amountToRollOverToNext,
       charity_contribution: charityContribution,
+      participant_count: userScoresMap.size,
       status: 'in_progress',
     })
     .select()
@@ -299,7 +302,7 @@ export async function executeDraw(drawId: string) {
       title: 'Congratulations! You are a Hero.',
       message: `You matched ${w.match_count} numbers in the latest draw and won ₹${w.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}. Please submit your proof.`,
       type: 'draw_result',
-      action_url: `/proofs/${draw.id}` 
+      action_url: `/proofs/${w.id}` 
     }))
     
     const chunkSize = 500

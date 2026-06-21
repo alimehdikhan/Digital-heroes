@@ -1,8 +1,12 @@
+import Link from "next/link"
 import { FadeIn, SlideUp, StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { DonateButton } from "@/components/DonateButton"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import Script from "next/script"
+
+const DEFAULT_HERO =
+  "https://lh3.googleusercontent.com/aida/AP1WRLuEGEHxieATpWDz_3xndMro4wncatG-WuDNf_DqV8NLDDD-YRU0V6oFpVXfEKL36ytfx5vZNKTfaq0LNKpGYuVexJb54OerHy7O20pKB9F7nvBfd-Kb18ZcVmeF_VNLWah9odRxDT9ITnKXSFHK_hZy48BiaxpLQbUWuwE9n_0vXwvLGOuMBI3Cy1GM6V3imu6riQc3U6FE7slX-bHdCTtcXXg8jqJgDNDEiK7hbg_Y3oSr_hMg8QCqvQ"
 
 export default async function CharityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,7 +21,7 @@ export default async function CharityDetailPage({ params }: { params: Promise<{ 
       {/* Hero Section */}
       <section className="relative h-[85vh] w-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-cover bg-center brightness-50 contrast-125 scale-105" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLuEGEHxieATpWDz_3xndMro4wncatG-WuDNf_DqV8NLDDD-YRU0V6oFpVXfEKL36ytfx5vZNKTfaq0LNKpGYuVexJb54OerHy7O20pKB9F7nvBfd-Kb18ZcVmeF_VNLWah9odRxDT9ITnKXSFHK_hZy48BiaxpLQbUWuwE9n_0vXwvLGOuMBI3Cy1GM6V3imu6riQc3U6FE7slX-bHdCTtcXXg8jqJgDNDEiK7hbg_Y3oSr_hMg8QCqvQ')" }}></div>
+          <div className="absolute inset-0 bg-cover bg-center brightness-50 contrast-125 scale-105" style={{ backgroundImage: `url('${charity.hero_image_url || DEFAULT_HERO}')` }}></div>
           <div className="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-navy-950/40 via-transparent to-transparent"></div>
         </div>
@@ -31,9 +35,11 @@ export default async function CharityDetailPage({ params }: { params: Promise<{ 
             {charity.description || "Empowering communities through verified impact initiatives."}
           </p>
           <div className="flex flex-col md:flex-row justify-center gap-6">
-            <Button size="lg" className="h-16 px-12 btn-primary uppercase tracking-widest font-black text-navy-950 shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500">
-              Commit Support
-            </Button>
+            <Link href="/register">
+              <Button size="lg" className="h-16 px-12 btn-primary uppercase tracking-widest font-black text-navy-950 shadow-emerald-glow border-none bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500">
+                Commit Support
+              </Button>
+            </Link>
             <DonateButton charityId={charity.id} charityName={charity.name} />
           </div>
         </SlideUp>
@@ -74,20 +80,20 @@ export default async function CharityDetailPage({ params }: { params: Promise<{ 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
             <StaggerItem className="space-y-4 relative">
               <div className="text-emerald-400 mb-4 flex justify-center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M17 12h.01"/><path d="M7 12h.01"/></svg></div>
-              <h3 className="font-display text-5xl md:text-6xl text-emerald-400 font-bold drop-shadow-md">$4.2M</h3>
+              <h3 className="font-display text-5xl md:text-6xl text-emerald-400 font-bold drop-shadow-md">₹{Number(charity.total_contributed || 0).toLocaleString()}</h3>
               <p className="font-body text-xs text-white/50 uppercase tracking-widest font-bold">Capital Dispatched</p>
             </StaggerItem>
             <StaggerItem className="space-y-4 relative">
               <div className="hidden md:block absolute -left-6 top-1/2 -translate-y-1/2 h-24 w-px bg-white/10"></div>
               <div className="text-gold-400 mb-4 flex justify-center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
-              <h3 className="font-display text-5xl md:text-6xl text-gold-400 font-bold drop-shadow-md">12</h3>
-              <p className="font-body text-xs text-white/50 uppercase tracking-widest font-bold">Projects Funded</p>
+              <h3 className="font-display text-5xl md:text-6xl text-gold-400 font-bold drop-shadow-md">{(charity.events || []).length}</h3>
+              <p className="font-body text-xs text-white/50 uppercase tracking-widest font-bold">Upcoming Events</p>
               <div className="hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 h-24 w-px bg-white/10"></div>
             </StaggerItem>
             <StaggerItem className="space-y-4 relative">
               <div className="text-emerald-400 mb-4 flex justify-center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-              <h3 className="font-display text-5xl md:text-6xl text-emerald-400 font-bold drop-shadow-md">850k</h3>
-              <p className="font-body text-xs text-white/50 uppercase tracking-widest font-bold">Lives Impacted</p>
+              <h3 className="font-display text-5xl md:text-6xl text-emerald-400 font-bold drop-shadow-md">{charity.is_active ? 'Featured' : 'Partner'}</h3>
+              <p className="font-body text-xs text-white/50 uppercase tracking-widest font-bold">Platform Status</p>
             </StaggerItem>
           </div>
         </StaggerContainer>
