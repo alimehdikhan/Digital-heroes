@@ -2,6 +2,17 @@
 
 Digital Heroes is a premium, subscription-driven web application where golf scores become a lottery ticket for charitable impact and monthly jackpots. Built with a modern, high-end "dark luxury" aesthetic, it operates on a secure Supabase backend with an algorithmic draw engine.
 
+## 🌐 Live Application
+
+**Production URL:** [https://digital-heroes-indol.vercel.app/](https://digital-heroes-indol.vercel.app/)
+
+| Page | URL |
+|------|-----|
+| Homepage | [digital-heroes-indol.vercel.app](https://digital-heroes-indol.vercel.app/) |
+| Login | [/login](https://digital-heroes-indol.vercel.app/login) |
+| Register | [/register](https://digital-heroes-indol.vercel.app/register) |
+| Admin Console | [/admin](https://digital-heroes-indol.vercel.app/admin) |
+
 ## 🚀 Technology Stack
 
 - **Framework**: Next.js 14 (App Router)
@@ -15,8 +26,8 @@ Digital Heroes is a premium, subscription-driven web application where golf scor
 
 ### 1. Clone & Install
 ```bash
-git clone <repository-url>
-cd "web heroes"
+git clone https://github.com/alimehdikhan/Digital-heroes.git
+cd Digital-heroes
 npm install
 ```
 
@@ -71,7 +82,7 @@ npm run seed:demo
 | **Subscriber** | `hero@digitalheroes.test` | `Hero1234!` | Dashboard, scores (5 seeded), charity, draws |
 | **Administrator** | `admin@digitalheroes.test` | `Admin1234!` | Full admin console at `/admin` |
 
-Login at `/login`. The subscriber account has an active subscription and five Stableford scores pre-loaded.
+Login at [https://digital-heroes-indol.vercel.app/login](https://digital-heroes-indol.vercel.app/login). The subscriber account has an active subscription and five Stableford scores pre-loaded.
 
 ### Manual admin promotion (optional)
 
@@ -83,19 +94,20 @@ To promote any other account to admin:
 ## 🧪 Local QA & Testing
 - **Subscriptions**: If `RAZORPAY_KEY_ID` is omitted or contains a Razorpay test prefix (e.g. `rzp_test_`), the application will automatically intercept the payment gateway and simulate a successful subscription. This unblocks local QA testing of the Score Management systems for standard users.
 
-## 🏗️ Deployment to Vercel
+## 🏗️ Deployment
 
-This application is fully prepared for Vercel deployment.
+**Live site:** [https://digital-heroes-indol.vercel.app/](https://digital-heroes-indol.vercel.app/) (Vercel + Supabase)
 
-1. Push your code to GitHub.
-2. Create a new project in Vercel and import the repository.
-3. In the Vercel project settings, add the Environment Variables matching your `.env.local` file.
-4. Set the Build Command to `npm run build` and Output Directory to `.next` (Vercel defaults).
-5. Deploy.
+Deployed from [github.com/alimehdikhan/Digital-heroes](https://github.com/alimehdikhan/Digital-heroes).
 
-**Important Production Notes:**
-- Ensure you swap your Razorpay Test keys for Razorpay Live keys in the Vercel environment variables.
-- Configure your Razorpay Webhook endpoint in the Razorpay Dashboard to point to `https://<your-domain>/api/webhooks/razorpay` and update the `RAZORPAY_WEBHOOK_SECRET` in Vercel.
+**Production environment variables:**
+- Set `NEXT_PUBLIC_SITE_URL=https://digital-heroes-indol.vercel.app`
+- Configure Supabase and Razorpay keys in Vercel project settings
+
+**Important production notes:**
+- Use Razorpay Live keys in production (test keys for local dev only).
+- Razorpay webhook endpoint: `https://digital-heroes-indol.vercel.app/api/webhooks/razorpay`
+- Set `RAZORPAY_WEBHOOK_SECRET` in Vercel to match the Razorpay dashboard.
 
 ## 📊 Business Logic Highlights
 - **Score Management**: Users can only log Stableford scores between 1-45. Only one score per date is allowed. A Supabase trigger automatically enforces a rolling maximum of 5 scores per user.
