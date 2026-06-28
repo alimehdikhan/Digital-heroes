@@ -58,14 +58,27 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 👑 Demo & Admin Access
+## 👑 Demo & Test Credentials (PRD Deliverable)
 
-To access the Admin Command Center:
-1. Sign up for a new account through the application UI (`/register`).
-2. Go to your Supabase Dashboard -> Table Editor -> `profiles`.
-3. Locate your newly created user.
-4. Change the `role` column from `user` to `admin`.
-5. Refresh the application. You will now see the **Admin Console** tab in the navigation bar.
+After running migrations, seed evaluator-ready accounts:
+
+```bash
+npm run seed:demo
+```
+
+| Role | Email | Password | Access |
+|------|-------|----------|--------|
+| **Subscriber** | `hero@digitalheroes.test` | `Hero1234!` | Dashboard, scores (5 seeded), charity, draws |
+| **Administrator** | `admin@digitalheroes.test` | `Admin1234!` | Full admin console at `/admin` |
+
+Login at `/login`. The subscriber account has an active subscription and five Stableford scores pre-loaded.
+
+### Manual admin promotion (optional)
+
+To promote any other account to admin:
+1. Sign up via `/register`.
+2. In Supabase → Table Editor → `profiles`, set `role` to `admin`.
+3. Refresh the app to access `/admin`.
 
 ## 🧪 Local QA & Testing
 - **Subscriptions**: If `RAZORPAY_KEY_ID` is omitted or contains a Razorpay test prefix (e.g. `rzp_test_`), the application will automatically intercept the payment gateway and simulate a successful subscription. This unblocks local QA testing of the Score Management systems for standard users.

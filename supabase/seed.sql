@@ -9,12 +9,9 @@ INSERT INTO charities (name, description, logo_url, website_url, is_active, tota
   ('Macmillan Cancer Support', 'Supporting people living with cancer.', NULL, 'https://www.macmillan.org.uk', FALSE, 1200.00),
   ('Children in Need', 'Helping disadvantaged children across the UK.', NULL, 'https://www.bbcchildreninneed.co.uk', FALSE, 800.00);
 
--- Note: Do NOT seed auth.users here — use Supabase Dashboard or sign-up flow.
--- To create an admin user:
--- 1. Sign up normally via the app
--- 2. In Supabase SQL editor run:
---    UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
---    (join with auth.users for the email lookup)
+-- Demo accounts (PRD test credentials): run from project root:
+--   npm run seed:demo
+-- Creates hero@digitalheroes.test / Hero1234! and admin@digitalheroes.test / Admin1234!
 
 -- Sample draw (completed, no jackpot winner — rollover)
 -- INSERT INTO draws (month, year, mode, winning_numbers, total_pool, jackpot_amount,

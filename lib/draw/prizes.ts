@@ -8,30 +8,47 @@ export interface PrizeBreakdown {
   charityPercentage: number
 }
 
+export interface CalculatePrizesOptions {
+  /** Pre-calculated charity total (sum of per-user contributions). Takes precedence over charityPercentage. */
+  charityContribution?: number
+  /** Fallback when charityContribution is not provided. Minimum 10% enforced. */
+  charityPercentage?: number
+  rolloverAmount?: number
+}
+
 /**
  * Calculate prize pool distribution.
  *
  * Rules (per PRD):
- * - Minimum 10% of total pool goes to charity (enforced)
+ * - Charity is deducted from the pool (per-user sums or minimum 10%)
  * - Remaining pool distributed: 40% jackpot (5-match), 35% silver (4-match), 25% bronze (3-match)
  * - If previous jackpot rolled over, add rolloverAmount to jackpot
  */
 export function calculatePrizes(
   totalPool: number,
-  charityPercentage: number = 10,
-  rolloverAmount: number = 0
+  options: CalculatePrizesOptions = {}
 ): PrizeBreakdown {
-  // Enforce minimum 10% charity
-  const effectiveCharityPct = Math.max(charityPercentage, 10)
-  const charityContribution = round2(totalPool * (effectiveCharityPct / 100))
-  const distributable = round2(totalPool - charityContribution)
+  const rolloverAmount = options.rolloverAmount ?? 0
+  let charityContribution: number
+  let charityPercentage: number
+
+  if (options.charityContribution != null) {
+    charityContribution = round2(Math.min(options.charityContribution, totalPool))
+    charityPercentage =
+      totalPool > 0 ? round2((charityContribution / totalPool) * 100) : 10
+  } else {
+    charityPercentage = Math.max(options.charityPercentage ?? 10, 10)
+    charityContribution = round2(totalPool * (charityPercentage / 100))
+  }
+
+  const distributable = round2(Math.max(0, totalPool - charityContribution))
 
   return {
     jackpot:          round2(distributable * 0.40 + rolloverAmount),
     prize4match:      round2(distributable * 0.35),
     prize3match:      round2(distributable * 0.25),
     charityContribution,
-    charityPercentage: effectiveCharityPct,
+    charityPercentage,
   }
 }
 

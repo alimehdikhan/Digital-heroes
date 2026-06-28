@@ -81,7 +81,7 @@ export async function simulateDraw(
   const poolAmount = calculatedPool
   const charityContribution = calculatedCharity
 
-  // Load scores for the draw month (PRD: monthly draw participation)
+  // PRD: each subscriber's latest 5 Stableford scores (rolling window)
   const allScores: any[] = []
   const chunkSize = 500
   for (let i = 0; i < activeUserIds.length; i += chunkSize) {
@@ -90,10 +90,8 @@ export async function simulateDraw(
       .from('scores')
       .select('user_id, score, date')
       .in('user_id', chunk)
-      .gte('date', `${year}-${String(month).padStart(2, '0')}-01`)
-      .lte('date', `${year}-${String(month).padStart(2, '0')}-31`)
       .order('date', { ascending: false })
-      
+
     if (data) allScores.push(...data)
   }
 
@@ -124,15 +122,15 @@ export async function simulateDraw(
     .single()
 
   const previousRollover = previousDraw?.jackpot_rolled_over ? Number(previousDraw.rollover_amount) : 0
-  const charityPct = activeProfiles.length > 0
-    ? Math.max(10, Math.min(...activeProfiles.map((p: any) => p.charity_percentage || 10)))
-    : 10
 
   // Use the draw engine from lib/draw/engine.ts instead of inline logic
   // Handle edge case where no participants have 5 scores
   let engineResult
   if (participants.length === 0) {
-    const prizes = calculatePrizes(poolAmount, charityPct, previousRollover)
+    const prizes = calculatePrizes(poolAmount, {
+      charityContribution,
+      rolloverAmount: previousRollover,
+    })
     engineResult = {
       winningNumbers: [0, 0, 0, 0, 0],
       jackpotAmount: prizes.jackpot,
@@ -154,7 +152,7 @@ export async function simulateDraw(
       participants,
       poolAmount,
       previousRollover,
-      charityPct
+      charityContribution
     )
   }
 

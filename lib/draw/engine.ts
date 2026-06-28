@@ -46,14 +46,14 @@ export interface DrawResult {
  * @param participants   - All eligible subscribers with their scores
  * @param totalPool      - Total prize pool for this month
  * @param rolloverAmount - Accumulated jackpot from previous rolled-over months
- * @param charityPct     - Charity contribution percentage (min 10)
+ * @param charityContribution - Pre-calculated charity total (sum of per-user contributions)
  */
 export async function runDraw(
   mode: DrawMode,
   participants: DrawParticipant[],
   totalPool: number,
   rolloverAmount: number = 0,
-  charityPct: number = 10
+  charityContribution?: number
 ): Promise<DrawResult> {
   if (totalPool <= 0) throw new Error('Total pool must be greater than 0')
   if (participants.length === 0) {
@@ -70,7 +70,7 @@ export async function runDraw(
   }
 
   // 2. Calculate prize pool distribution
-  const prizes = calculatePrizes(totalPool, charityPct, rolloverAmount)
+  const prizes = calculatePrizes(totalPool, { charityContribution, rolloverAmount })
 
   // 3. Find winners per tier
   const jackpotWinners: DrawWinnerResult[] = []

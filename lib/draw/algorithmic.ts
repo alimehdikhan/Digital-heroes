@@ -1,14 +1,12 @@
 import { generateRandomNumbers } from './random'
 
 /**
- * Algorithmic Draw Mode
+ * Algorithmic Draw Mode (PRD)
  *
- * Weighted by most frequent user scores.
- * Algorithm:
- * 1. Calculate the frequency of all submitted scores (1-45).
- * 2. Create a weighted pool where highly frequent scores appear more often.
- * 3. Draw 5 unique numbers from this pool probabilistically.
- * 4. Fallback to random if pool is exhausted.
+ * Winning numbers are weighted by score frequency across all participants:
+ * - ~3 numbers drawn from the most-frequent score pool
+ * - ~2 numbers drawn from the least-frequent score pool
+ * Falls back to random when data is insufficient.
  */
 export async function generateAlgorithmicNumbers(
   allScores: number[]
@@ -18,57 +16,82 @@ export async function generateAlgorithmicNumbers(
     return generateRandomNumbers()
   }
 
-  // 1. Calculate frequency of each number 1-45
   const frequencies = new Map<number, number>()
   for (let i = 1; i <= 45; i++) frequencies.set(i, 0)
-  
+
   for (const score of allScores) {
     if (score >= 1 && score <= 45) {
       frequencies.set(score, frequencies.get(score)! + 1)
     }
   }
 
-  // 2. Create weighted pool (give base weight of 1 so unselected numbers still have a tiny chance)
-  const pool: number[] = []
-  for (const [num, freq] of Array.from(frequencies.entries())) {
-    const weight = freq > 0 ? freq * 2 : 1 // multiply frequency to heavily weight popular scores
-    for (let i = 0; i < weight; i++) {
-      pool.push(num)
-    }
-  }
+  const active = Array.from(frequencies.entries()).filter(([, freq]) => freq > 0)
+  if (active.length === 0) return generateRandomNumbers()
 
-  // 3. Draw 5 unique numbers pseudo-randomly from the weighted pool
+  const maxFreq = Math.max(...active.map(([, freq]) => freq))
+  const sorted = [...active].sort((a, b) => b[1] - a[1])
+  const midpoint = Math.ceil(sorted.length / 2)
+  const mostFrequent = sorted.slice(0, midpoint)
+  const leastFrequent = sorted.slice(midpoint)
+
+  const mostPool = buildWeightedPool(mostFrequent, (freq) => freq * 2)
+  const leastPool = buildWeightedPool(
+    leastFrequent.length > 0 ? leastFrequent : mostFrequent,
+    (freq) => (maxFreq - freq + 1) * 2
+  )
+
   const numbers: number[] = []
   const seen = new Set<number>()
 
-  while (seen.size < 5 && pool.length > 0) {
-    const randomIndex = Math.floor(Math.random() * pool.length)
-    const num = pool[randomIndex]
-    
-    if (!seen.has(num)) {
-      seen.add(num)
-      numbers.push(num)
-    }
-    
-    // Remove all instances of this chosen number from the pool so we don't draw it again
-    for (let i = pool.length - 1; i >= 0; i--) {
-      if (pool[i] === num) {
-        pool.splice(i, 1)
-      }
-    }
-  }
+  drawFromPool(mostPool, 3, seen, numbers)
+  drawFromPool(leastPool, 5 - numbers.length, seen, numbers)
 
-  // 4. Fallback if something goes wrong
-  while (seen.size < 5) {
-    const fallbacks = generateRandomNumbers()
-    for (const n of fallbacks) {
+  while (numbers.length < 5) {
+    for (const n of generateRandomNumbers()) {
       if (!seen.has(n)) {
         seen.add(n)
         numbers.push(n)
       }
-      if (seen.size >= 5) break
+      if (numbers.length >= 5) break
     }
   }
 
   return numbers.sort((a, b) => a - b)
+}
+
+function buildWeightedPool(
+  entries: [number, number][],
+  weightFn: (freq: number) => number
+): number[] {
+  const pool: number[] = []
+  for (const [num, freq] of entries) {
+    const weight = weightFn(freq)
+    for (let i = 0; i < weight; i++) pool.push(num)
+  }
+  return pool
+}
+
+function drawFromPool(
+  pool: number[],
+  count: number,
+  seen: Set<number>,
+  numbers: number[]
+): void {
+  const working = [...pool]
+  let drawn = 0
+
+  while (drawn < count && working.length > 0) {
+    const index = Math.floor(Math.random() * working.length)
+    const num = working[index]
+
+    if (!seen.has(num)) {
+      seen.add(num)
+      numbers.push(num)
+      drawn++
+    }
+
+    for (let i = working.length - 1; i >= 0; i--) {
+      if (working[i] === num) working.splice(i, 1)
+    }
+  }
 }

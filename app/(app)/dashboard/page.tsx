@@ -64,31 +64,19 @@ export default async function DashboardPage() {
   const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
   const hoursLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))
 
-  // Draws entered: completed draws where user had 5+ scores in that month
-  const { data: completedDraws } = await supabaseAdmin
+  const isActive = isSubscriptionActive(profile)
+
+  // PRD: subscribers with 5 latest scores are entered into each monthly draw
+  const { count: completedDrawCount } = await supabaseAdmin
     .from('draws')
-    .select('month, year')
+    .select('*', { count: 'exact', head: true })
     .eq('status', 'completed')
 
-  const { data: userScoreDates } = await supabase
-    .from('scores')
-    .select('date')
-    .eq('user_id', user?.id || '')
-
-  let drawsEntered = 0
-  for (const draw of completedDraws || []) {
-    const countInMonth =
-      userScoreDates?.filter((s) => {
-        const d = new Date(s.date)
-        return d.getMonth() + 1 === draw.month && d.getFullYear() === draw.year
-      }).length || 0
-    if (countInMonth >= 5) drawsEntered++
-  }
+  const drawsEntered =
+    latestScores.length >= 5 && isActive ? completedDrawCount || 0 : 0
 
   const upcomingDrawDate = endOfMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const minsLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)))
-
-  const isActive = isSubscriptionActive(profile)
   const heroLabel = isActive 
     ? (profile?.subscription_plan === 'yearly' ? 'LEGEND' : 'HERO') 
     : 'INACTIVE'

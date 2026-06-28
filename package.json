@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "db:types": "supabase gen types typescript --local > types/database.ts"
+    "db:types": "supabase gen types typescript --local > types/database.ts",
+    "seed:demo": "node scripts/seed-demo-users.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

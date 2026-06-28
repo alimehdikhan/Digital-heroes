@@ -45,7 +45,7 @@ export default function DrawRulesPage() {
           <li><strong className="text-white">Bronze (3-match):</strong> 25% of the pool — honorable mention bracket.</li>
         </ul>
         <p>
-          If no winner emerges in a higher tier, the prize rolls down to the next tier. If no winner exists in any tier, the jackpot rolls over to the following month&apos;s draw.
+          Silver and bronze tier prizes are distributed only when winners exist in those tiers. If no player achieves a 5-number match, the jackpot allocation (40%) rolls over and is added to the next month&apos;s jackpot pool.
         </p>
 
         <h2 className="text-white font-display mt-12 mb-4">5. Prize Splitting</h2>
@@ -68,8 +68,8 @@ export default function DrawRulesPage() {
           The admin may select between two draw modes each month:
         </p>
         <ul>
-          <li><strong className="text-white">Random Draw:</strong> Entries are selected randomly from eligible participants.</li>
-          <li><strong className="text-white">Algorithmic Draw:</strong> Based on a cryptographically secure algorithm taking into account score history, consistency, and other verifiable metrics.</li>
+          <li><strong className="text-white">Random Draw:</strong> Five winning numbers are generated randomly from the 1–45 Stableford range.</li>
+          <li><strong className="text-white">Algorithmic Draw:</strong> Winning numbers are weighted by the most and least frequent scores submitted across all eligible participants.</li>
         </ul>
 
         <h2 className="text-white font-display mt-12 mb-4">9. Disputes</h2>
